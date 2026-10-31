@@ -19,14 +19,14 @@ jobs:
       - uses: actions/checkout@v4
         with:
           repository: Ma-XX-oN/RepoWorkflow
-          ref: 7abfdc6a5fb332e91dfe33fd89595839ad2638d8
+          ref: bd729194b242ca04da1b6d2c25be5db8f487d79e
           persist-credentials: false
       - uses: actions/setup-python@v5
         with:
           python-version: '3.13'
       - name: Assert tested RWF source revision
         shell: bash
-        run: test "$(git rev-parse HEAD)" = "7abfdc6a5fb332e91dfe33fd89595839ad2638d8"
+        run: test "$(git rev-parse HEAD)" = "bd729194b242ca04da1b6d2c25be5db8f487d79e"
       - name: Install dependencies
         run: python -m pip install -r requirements.txt
       - name: Compile affected code and tests
