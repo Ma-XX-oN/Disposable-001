@@ -19,17 +19,17 @@ jobs:
       - uses: actions/checkout@v4
         with:
           repository: Ma-XX-oN/RepoWorkflow
-          ref: bd729194b242ca04da1b6d2c25be5db8f487d79e
+          ref: 72e0ca5c3c5889fb513c370c0a5141ae9bff2c3a
           persist-credentials: false
       - uses: actions/setup-python@v5
         with:
           python-version: '3.13'
       - name: Assert tested RWF source revision
         shell: bash
-        run: test "$(git rev-parse HEAD)" = "bd729194b242ca04da1b6d2c25be5db8f487d79e"
+        run: test "$(git rev-parse HEAD)" = "72e0ca5c3c5889fb513c370c0a5141ae9bff2c3a"
       - name: Install dependencies
         run: python -m pip install -r requirements.txt
       - name: Compile affected code and tests
         run: python -m py_compile repo_workflow/ci_invocation.py repo_workflow/done_cli.py repo_workflow/done_runtime.py tests/test_ci_invocation.py tests/test_ci_invocation_trigger_contract.py tests/test_done_cli.py tests/test_done_runtime.py
-      - name: Run focused tests
-        run: python -m unittest tests.test_done_cli tests.test_done_runtime tests.test_ci_invocation tests.test_ci_invocation_trigger_contract -v
+      - name: Run complete native repository regression
+        run: python -m unittest discover -s tests -p 'test_*.py' -v
