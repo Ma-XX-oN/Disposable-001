@@ -1,0 +1,35 @@
+name: RWF109 exact-source public workbench
+on:
+  push:
+    branches:
+      - verification-109-exact-source-20261031
+    paths:
+      - .ci/verification-109-run
+permissions:
+  contents: read
+jobs:
+  focused:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          repository: Ma-XX-oN/RepoWorkflow
+          ref: ce48f9f1e796e579ddfe4fd92d91913859992da4
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Assert tested RWF source revision
+        shell: bash
+        run: test "$(git rev-parse HEAD)" = "ce48f9f1e796e579ddfe4fd92d91913859992da4"
+      - name: Install dependencies
+        run: python -m pip install -r requirements.txt
+      - name: Compile affected code and tests
+        run: python -m py_compile repo_workflow/ci_invocation.py repo_workflow/done_cli.py repo_workflow/done_runtime.py tests/test_ci_invocation.py tests/test_ci_invocation_trigger_contract.py tests/test_done_cli.py tests/test_done_runtime.py
+      - name: Run focused tests
+        run: python -m unittest tests.test_done_cli tests.test_done_runtime tests.test_ci_invocation tests.test_ci_invocation_trigger_contract -v
