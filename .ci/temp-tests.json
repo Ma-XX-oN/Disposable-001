@@ -1,0 +1,22 @@
+{
+  "test-harnesses": {
+    "unittest": {
+      "command": "python",
+      "layout": [
+        "-m",
+        "unittest",
+        "$test"
+      ]
+    }
+  },
+  "tests": [
+    {
+      "test-harness": "unittest",
+      "issue-1-temp-probe": {
+        "type": "regression",
+        "name": "tests.test_issue_1_temporary"
+      }
+    }
+  ],
+  "aliases": {}
+}
