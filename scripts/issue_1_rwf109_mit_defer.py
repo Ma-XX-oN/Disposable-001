@@ -28,6 +28,7 @@ def gh_delete(ref):
 
 def write_issuer(path,kind):
   base = (
+    "#!/usr/bin/env python3\n"
     "import datetime,hashlib,json,os,sys\n"
     "payload=json.load(sys.stdin)\n"
     "request=payload['request']\n"
