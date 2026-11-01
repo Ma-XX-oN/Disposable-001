@@ -8,3 +8,5 @@ Retest exact updated RWF consumer adapter candidate 9d715d950f3d5465d89721e40684
 Exercise nonterminal automatic stage plus append-only terminal publication on exact adapter SHA.
 Retest exact latest size-compliant consumer adapter source 6e1113435002206e89af488c72243e998b17897b.
 Exclude separate native harness from canonical consumer fixture for exact-source verification.
+
+Rerun full disposable lifecycle against source fd5c5653c14d438f0b0243afd5907ab0cc5424bb
