@@ -101,6 +101,43 @@ jobs:
           cat ../done-green.err
           test "$rc" -ne 0
           grep -q 'independent done execution authority is unavailable' ../done-green.err
+      - name: Replay genuine RED to GREEN via RWF in one isolated checkout
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd disposable
+          green_base="$(git rev-parse HEAD)"
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          path = Path('issue_1_feature.py')
+          code = path.read_text()
+          assert code.count('return left + right') == 1
+          path.write_text(code.replace('return left + right', 'return left'))
+          path = Path('.ci/tests.json')
+          catalog = json.loads(path.read_text())
+          group = catalog['tests'][0]['issue-1-lifecycle']
+          group['expected-red'] = {
+            'exit-code': 1, 'output-contains': '1 != 2'
+          }
+          path.write_text(json.dumps(catalog, indent=2) + '\n')
+          PY
+          git add issue_1_feature.py .ci/tests.json
+          git commit -m 'Fixture: preimplementation RED candidate'
+          python RepoWorkflow/repo_workflow.py --root . test RED issue-1-lifecycle > ../rwf-red.out 2> ../rwf-red.err
+          git show "$green_base:issue_1_feature.py" > issue_1_feature.py
+          git show "$green_base:.ci/tests.json" > .ci/tests.json
+          git add issue_1_feature.py .ci/tests.json
+          git commit -m 'Fixture: implement accepted GREEN solution'
+          python RepoWorkflow/repo_workflow.py --root . test GREEN > ../rwf-green.out 2> ../rwf-green.err
+          python - <<'PY'
+          from pathlib import Path
+          import json
+          rows = [json.loads(line) for line in Path('.repoworkflow/validation/testResults-1.jsonl').read_text().splitlines()]
+          assert any(row.get('kind') == 'RED' and row.get('redStatus') == 'RED' for row in rows), rows
+          assert any(row.get('kind') == 'GREEN' and row.get('result') == 'succeeded' for row in rows), rows
+          assert not Path('.ci/temp-tests.json').exists()
+          PY
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -112,4 +149,8 @@ jobs:
             integration.err
             done-green.out
             done-green.err
+            rwf-red.out
+            rwf-red.err
+            rwf-green.out
+            rwf-green.err
           if-no-files-found: warn
