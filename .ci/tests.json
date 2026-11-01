@@ -14,14 +14,25 @@
       "test-harness": "unittest",
       "issue-1-lifecycle": {
         "type": "regression",
-        "lifecycle": "RED",
-        "name": "tests.test_issue_1_smoke",
-        "expected-red": {
-          "exit-code": 1,
-          "output-contains": "issue-1 expected failure"
-        }
+        "lifecycle": "GREEN",
+        "name": "tests.test_issue_1_smoke"
+      }
+    },
+    {
+      "test-harness": "unittest",
+      "issue-1-integration": {
+        "type": "integration",
+        "lifecycle": "GREEN",
+        "name": "tests.test_issue_1_integration"
       }
     }
   ],
-  "aliases": {}
+  "aliases": {
+    "regression": [
+      "issue-1-lifecycle"
+    ],
+    "integration": [
+      "issue-1-integration"
+    ]
+  }
 }
