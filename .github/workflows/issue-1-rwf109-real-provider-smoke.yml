@@ -1,0 +1,87 @@
+name: RWF109 disposable real provider smoke
+on:
+  pull_request:
+    branches:
+      - main
+  push:
+    branches:
+      - issue-1-rwf109-real-provider-smoke-20261101
+    paths:
+      - .ci/rwf109-provider-smoke
+permissions:
+  contents: write
+jobs:
+  native-cas-contract:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          repository: Ma-XX-oN/RepoWorkflow
+          ref: d94cdb756869f52e112b3db3d6740764908e6ee4
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Verify exact correction and run registered regression
+        shell: bash
+        run: |
+          test "$(git rev-parse HEAD)" = "d94cdb756869f52e112b3db3d6740764908e6ee4"
+          python -m unittest -v tests.test_issue_109_ref_cas_request_identity
+  native-regression-integration:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          repository: Ma-XX-oN/RepoWorkflow
+          ref: d94cdb756869f52e112b3db3d6740764908e6ee4
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Install product dependencies
+        run: python -m pip install -r requirements.txt
+      - name: Catalogue regression
+        shell: bash
+        run: |
+          test "$(git rev-parse HEAD)" = "d94cdb756869f52e112b3db3d6740764908e6ee4"
+          python scripts/validate.py regression
+      - name: Catalogue integration
+        shell: bash
+        run: python scripts/validate.py integration
+  smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/checkout@v4
+        with:
+          repository: Ma-XX-oN/RepoWorkflow
+          ref: d94cdb756869f52e112b3db3d6740764908e6ee4
+          path: rwf-source
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Assert exact RWF product revision
+        shell: bash
+        run: |
+          test "$(git -C rwf-source rev-parse HEAD)" = "d94cdb756869f52e112b3db3d6740764908e6ee4"
+      - name: Run exact-source permanent #109 CAS regression
+        working-directory: rwf-source
+        run: python -m unittest -v tests.test_issue_109_ref_cas_request_identity
+      - name: Exercise real disposable provider with run-scoped test verifier
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python scripts/issue_1_rwf109_real_provider_smoke.py

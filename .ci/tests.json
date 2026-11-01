@@ -1,0 +1,29 @@
+{
+  "test-harnesses": {
+    "unittest": {
+      "command": "python",
+      "layout": [
+        "-m",
+        "unittest",
+        "$test"
+      ]
+    }
+  },
+  "tests": [
+    {
+      "test-harness": "unittest",
+      "issue-1-lifecycle": {
+        "type": "regression",
+        "name": "tests.test_issue_1_smoke"
+      }
+    },
+    {
+      "test-harness": "unittest",
+      "issue-1-integration": {
+        "type": "integration",
+        "name": "tests.test_issue_1_integration"
+      }
+    }
+  ],
+  "aliases": {}
+}
