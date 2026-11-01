@@ -79,7 +79,7 @@ def main():
     "data=json.load(sys.stdin)['request']\n"
     "raw=json.dumps(data,sort_keys=True,separators=(',',':')).encode()\n"
     "assert data['repository']=='Ma-XX-oN/Disposable-001'\n"
-    "assert data['operation']=='ref.create'\n"
+    "assert data['operation'] in ('ref.create','ref.cas')\n"
     "assert data['parameters']['ref']==os.environ['RWF_TEST_SCOPE_REF']\n"
     "assert data['request_id']==os.environ['RWF_TEST_REQUEST_ID']\n"
     "actor=os.environ['RWF_TEST_ACTOR']\n"
@@ -122,6 +122,67 @@ def main():
     second = transport.request("ref.create", request_id, parameters)
     assert second == parameters, "idempotent retry changed result"
     assert backend.get("git/ref/" + ref.removeprefix("refs/"))["object"]["sha"] == original
+    # Exact-old-SHA CAS against the same disposable INT ref, not main.
+    local = Path.cwd()
+    def git(*args):
+      process = subprocess.run(
+        ["git", "-C", str(local), *args], text=True, capture_output=True,
+        timeout=45, check=False,
+      )
+      assert process.returncode == 0, "isolated test Git operation failed: " + str(args)
+      return process.stdout.strip()
+    cfg = local / ".ci" / "repoworkflow.json"
+    assert not cfg.exists(), "test expected no project config"
+    cfg.write_text(json.dumps({
+      "schema": 1, "versionCommand": ["python", "version.py"],
+      "repository": {"integrationBranch": "main", "authoritativeRemote": "origin"},
+      "environments": [{
+        "id": "disposable", "validationCommand": ["python", "validate.py"],
+      }], "artifacts": [],
+    }), encoding="utf-8")
+    try:
+      clone_url = backend.get("")["clone_url"]
+      assert clone_url == "https://github.com/Ma-XX-oN/Disposable-001.git"
+      git("remote", "set-url", "origin", clone_url)
+      import base64
+      secret = base64.b64encode(
+        ("x-access-token:" + os.environ["GH_TOKEN"]).encode()
+      ).decode("ascii")
+      git("config", "--local", "http.https://github.com/.extraheader",
+          "AUTHORIZATION: basic " + secret)
+      git("fetch", "--no-tags", "origin", default)
+      git("cat-file", "-e", original + "^{commit}")
+      tree = git("rev-parse", original + "^{tree}")
+      newer = git(
+        "-c", "user.name=RWF-Test", "-c",
+        "user.email=rwf-test@users.noreply.github.com",
+        "commit-tree", tree, "-p", original,
+        "-m", "RWF #109 disposable INT-CAS smoke " + run,
+      )
+      assert len(newer) == 40 and newer != original
+      cas_id = request_id + "-cas"
+      os.environ["RWF_TEST_REQUEST_ID"] = cas_id
+      result = transport.request("ref.cas", cas_id, {
+        "ref": ref, "expected_sha": original, "sha": newer,
+      })
+      assert result == {"ref": ref, "sha": newer}
+      assert backend.get("git/ref/" + ref.removeprefix("refs/"))["object"]["sha"] == newer
+      assert backend.get("git/ref/heads/" + default)["object"]["sha"] == original
+      stale_id = request_id + "-stale"
+      os.environ["RWF_TEST_REQUEST_ID"] = stale_id
+      rejected = False
+      try:
+        transport.request("ref.cas", stale_id, {
+          "ref": ref, "expected_sha": original, "sha": newer,
+        })
+      except (NativeHostTransportError, IntegrationHostError):
+        rejected = True
+      assert rejected, "stale CAS was accepted"
+      assert backend.get("git/ref/" + ref.removeprefix("refs/"))["object"]["sha"] == newer
+      print("PASS: actual scoped CAS applied, stale CAS rejected, destination unchanged")
+    finally:
+      cfg.unlink(missing_ok=True)
+      git("config", "--local", "--unset-all", "http.https://github.com/.extraheader")
     print("PASS: unauthorized denied; actor mismatch denied; real ref created; readback; idempotency; main unchanged")
   finally:
     os.environ.pop("RWF_REPO_HOST_AUTH_COMMAND", None)
