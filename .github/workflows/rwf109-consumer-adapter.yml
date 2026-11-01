@@ -175,9 +175,15 @@ jobs:
           value = path.read_text().strip()
           args = sys.argv[1:]
           if args:
-            assert args[:2] == ['task', '--issue'] and len(args) == 3, args
-            major, minor, patch = value.split('.')
-            value = f'{major}.{minor}.{patch}-issue.{args[2]}.0.1'
+            if args[:2] == ['task', '--issue'] and len(args) == 3:
+              major, minor, patch = value.split('.')
+              value = f'{major}.{minor}.{patch}-issue.{args[2]}.0.1'
+            elif args == ['task', '--increment', 'CI-iteration']:
+              base, suffix = value.split('-issue.')
+              issue, generation, iteration = suffix.split('.')
+              value = f'{base}-issue.{issue}.{generation}.{int(iteration) + 1}'
+            else:
+              raise SystemExit(2)
             path.write_text(value + '\n')
           print(value)
           PY
@@ -268,6 +274,12 @@ jobs:
           set +e
           python RepoWorkflow/repo_workflow.py --root . test regression > ../rwf-regression.out 2> ../rwf-regression.err
           regression_rc=$?
+          set -e
+          test "$regression_rc" -eq 0
+          python scripts/version.py task --increment CI-iteration
+          git add VERSION
+          git commit -m 'Fixture: advance to independent consumer integration candidate'
+          set +e
           python RepoWorkflow/repo_workflow.py --root . test integration > ../rwf-integration.out 2> ../rwf-integration.err
           integration_rc=$?
           set -e
