@@ -12,3 +12,4 @@ Retest RWF regression after committing residual lifecycle state.
 Retest RWF post-start regression with full checkout history.
 Verify corrected consumer validator and clean regression candidate.
 Verify done patch/minor/major fail-closed and invalid issue start does not mutate branch.
+Final verify after obsolete RED-only CI workflow cleanup.
