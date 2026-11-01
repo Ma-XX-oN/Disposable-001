@@ -85,7 +85,7 @@ jobs:
           test "$regression_rc" -eq 2
           test "$integration_rc" -eq 2
           grep -q 'no branch policy rule matches issue-1-rwf109-done-acceptance-20261101' ../regression.err
-          grep -q 'no branch policy rule matches issue-1-rwf109-done-acceptance-20261101' ../integration.err
+          grep -q 'consumer integration requires an authoritative environment adapter' ../integration.err
           # These negative assertions prove fail-closed admission; neither stage PASSes.
       - name: Verify missing external done authority fails closed
         shell: bash
