@@ -18,7 +18,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           repository: Ma-XX-oN/RepoWorkflow
-          ref: 9cba832d3b6e990cc38e40cc0b44e01bd6636028
+          ref: 826bf33e2b14a2fc3fc8fba796409a46d2816231
           persist-credentials: false
       - uses: actions/setup-python@v5
         with:
@@ -26,6 +26,6 @@ jobs:
       - name: Exact-source compile and cross-phase native regression
         shell: bash
         run: |
-          test "$(git rev-parse HEAD)" = "9cba832d3b6e990cc38e40cc0b44e01bd6636028"
+          test "$(git rev-parse HEAD)" = "826bf33e2b14a2fc3fc8fba796409a46d2816231"
           python -m py_compile repo_workflow/engine_remote.py tests/test_engine_remote.py
           python -m unittest -v tests.test_engine_remote tests.test_consumer_integration_adapter tests.test_test_cli tests.test_source_size
