@@ -14,7 +14,6 @@
       "test-harness": "unittest",
       "issue-1-lifecycle": {
         "type": "regression",
-        "lifecycle": "GREEN",
         "name": "tests.test_issue_1_smoke"
       }
     },
@@ -22,17 +21,9 @@
       "test-harness": "unittest",
       "issue-1-integration": {
         "type": "integration",
-        "lifecycle": "GREEN",
         "name": "tests.test_issue_1_integration"
       }
     }
   ],
-  "aliases": {
-    "regression": [
-      "issue-1-lifecycle"
-    ],
-    "integration": [
-      "issue-1-integration"
-    ]
-  }
+  "aliases": {}
 }
