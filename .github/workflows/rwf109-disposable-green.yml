@@ -74,9 +74,19 @@ jobs:
           python -m unittest -v tests.test_issue_1_smoke tests.test_issue_1_integration
           # RED selection/evidence from earlier workbench jobs is not transferred.
           # GREEN therefore must not be advertised as complete by this job.
-          python RepoWorkflow/repo_workflow.py --root . test regression
-          python RepoWorkflow/repo_workflow.py --root . test integration
-          python RepoWorkflow/repo_workflow.py --root . test results > ../green-results.json
+          set +e
+          python RepoWorkflow/repo_workflow.py --root . test regression > ../regression.out 2> ../regression.err
+          regression_rc=$?
+          python RepoWorkflow/repo_workflow.py --root . test integration > ../integration.out 2> ../integration.err
+          integration_rc=$?
+          set -e
+          printf 'REGRESSION_EXIT=%s INTEGRATION_EXIT=%s\n' "$regression_rc" "$integration_rc"
+          cat ../regression.err ../integration.err
+          test "$regression_rc" -eq 2
+          test "$integration_rc" -eq 2
+          grep -q 'no branch policy rule matches issue-1-rwf109-done-acceptance-20261101' ../regression.err
+          grep -q 'no branch policy rule matches issue-1-rwf109-done-acceptance-20261101' ../integration.err
+          # These negative assertions prove fail-closed admission; neither stage PASSes.
       - name: Verify missing external done authority fails closed
         shell: bash
         run: |
@@ -96,7 +106,10 @@ jobs:
         with:
           name: rwf109-disposable-green
           path: |
-            green-results.json
+            regression.out
+            regression.err
+            integration.out
+            integration.err
             done-green.out
             done-green.err
           if-no-files-found: warn
