@@ -1,3 +1,0 @@
-Verify issue-109 cross-phase version identity on all native platforms source 9cba832d3b6e990cc38e40cc0b44e01bd6636028
-Add regression PASS to integration phase identity negative test at 826bf33e2b14a2fc3fc8fba796409a46d2816231.
-Verify final product SHA 6a7a5ada74adcb703c0c26acd16f91f4a0600325 with native 3OS.
