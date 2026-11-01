@@ -39,7 +39,8 @@ jobs:
           git config user.name 'RWF disposable test worker'
           git config user.email 'rwf-disposable@example.invalid'
           python -m unittest -v tests.test_issue_1_smoke tests.test_issue_1_integration
-          python ../engine/repo_workflow.py --root . test GREEN issue-1-lifecycle
+          # RED selection/evidence from earlier workbench jobs is not transferred.
+          # GREEN therefore must not be advertised as complete by this job.
           python ../engine/repo_workflow.py --root . test regression
           python ../engine/repo_workflow.py --root . test integration
           python ../engine/repo_workflow.py --root . test results > ../green-results.json
