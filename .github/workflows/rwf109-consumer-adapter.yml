@@ -48,7 +48,7 @@ jobs:
           git config -f .gitmodules submodule.RepoWorkflow.url https://github.com/Ma-XX-oN/RepoWorkflow.git
           mkdir -p .ci .github/workflows scripts
           cp RepoWorkflow/templates/github/ci.yml .github/workflows/ci.yml
-          rm -f .github/workflows/rwf109-disposable-acceptance.yml .github/workflows/rwf109-disposable-green.yml .github/workflows/rwf109-consumer-adapter.yml
+          rm -f .github/workflows/rwf109-disposable-acceptance.yml .github/workflows/rwf109-disposable-green.yml .github/workflows/rwf109-consumer-adapter.yml .github/workflows/rwf109-consumer-native-exact.yml
           printf '1.0.0-issue.1.1\n' > .ci/run-ci-request
           python - <<'PY'
           import json
