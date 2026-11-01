@@ -32,6 +32,23 @@ jobs:
         run: |
           test "$(git -C engine rev-parse HEAD)" = "d3c8fef54d6eff45d3c2b6fa04ef6baf1688a75d"
           test "$(git -C disposable branch --show-current)" = "issue-1-rwf109-done-acceptance-20261101"
+      - name: Verify real RED and temporary test stages on issue branch
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd disposable
+          git config user.name 'RWF disposable test worker'
+          git config user.email 'rwf-disposable@example.invalid'
+          python ../engine/repo_workflow.py --root . test RED issue-1-lifecycle
+          python ../engine/repo_workflow.py --root . test temporary
+          python ../engine/repo_workflow.py --root . test results > ../red-result.json
+          python - <<'PY'
+          from pathlib import Path
+          import json
+          records = [json.loads(line) for line in Path('.repoworkflow/validation/testResults-1.jsonl').read_text().splitlines()]
+          assert any(r.get('kind') == 'RED' and r.get('redStatus') == 'RED' for r in records)
+          assert any(r.get('kind') == 'temporary' and r.get('result') == 'succeeded' for r in records)
+          PY
       - name: Probe public command and fail-closed default done
         shell: bash
         run: |
@@ -54,4 +71,5 @@ jobs:
           path: |
             done.out
             done.err
+            red-result.json
           if-no-files-found: warn
