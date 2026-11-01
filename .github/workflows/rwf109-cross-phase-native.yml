@@ -1,0 +1,31 @@
+name: RWF #109 cross-phase native acceptance
+on:
+  push:
+    branches:
+      - issue-1-rwf109-consumer-integration-20261031
+    paths:
+      - .ci/rwf109-cross-phase-run
+permissions:
+  contents: read
+jobs:
+  cross-phase:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          repository: Ma-XX-oN/RepoWorkflow
+          ref: 9cba832d3b6e990cc38e40cc0b44e01bd6636028
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Exact-source compile and cross-phase native regression
+        shell: bash
+        run: |
+          test "$(git rev-parse HEAD)" = "9cba832d3b6e990cc38e40cc0b44e01bd6636028"
+          python -m py_compile repo_workflow/engine_remote.py tests/test_engine_remote.py
+          python -m unittest -v tests.test_engine_remote tests.test_consumer_integration_adapter tests.test_test_cli tests.test_source_size
