@@ -6,3 +6,4 @@ Verify authoritative terminal version on consumer integration candidate c598b99b
 Use distinct versioned consumer integration phase after regression PASS.
 Retest exact updated RWF consumer adapter candidate 9d715d950f3d5465d89721e406840a4c004deb21.
 Exercise nonterminal automatic stage plus append-only terminal publication on exact adapter SHA.
+Retest exact latest size-compliant consumer adapter source 6e1113435002206e89af488c72243e998b17897b.
