@@ -6,3 +6,4 @@ Verify observed refusal scenarios and distinct fixture test PASS without promoti
 Retest separate regression-policy and integration-adapter fail-closed boundaries.
 Execute same-checkout RWF RED to GREEN lifecycle replay.
 Exercise RWF issue start against live GitHub issue metadata in isolated workbench.
+Retry live issue-start with explicitly configured GitHub repo-info adapter.
