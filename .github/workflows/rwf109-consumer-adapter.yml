@@ -262,6 +262,8 @@ jobs:
           git add -A
           git diff --cached --quiet || git commit -m 'Fixture: commit remaining RWF lifecycle materialization'
           find tests -type d -name __pycache__ -prune -exec rm -rf {} +
+          git add -A
+          git diff --cached --quiet || git commit -m 'Fixture: remove generated Python test caches'
           git status --short
           set +e
           python RepoWorkflow/repo_workflow.py --root . test regression > ../rwf-regression.out 2> ../rwf-regression.err
