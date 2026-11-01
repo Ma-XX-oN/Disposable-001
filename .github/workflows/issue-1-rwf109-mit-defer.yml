@@ -1,0 +1,34 @@
+name: RWF109 disposable MIT defer provider acceptance
+on:
+  push:
+    branches:
+      - issue-1-rwf109-mit-defer-20261101
+    paths:
+      - .ci/rwf109-mit-smoke
+permissions:
+  contents: write
+jobs:
+  mit-defer:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/checkout@v4
+        with:
+          repository: Ma-XX-oN/RepoWorkflow
+          ref: 9c570c941f2cfd77399a174f5f7398b804d95aba
+          path: rwf-source
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Verify exact RWF source
+        shell: bash
+        run: |
+          test "$(git -C rwf-source rev-parse HEAD)" = "9c570c941f2cfd77399a174f5f7398b804d95aba"
+      - name: Real MIT deferral and denied paths
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python scripts/issue_1_rwf109_mit_defer.py
