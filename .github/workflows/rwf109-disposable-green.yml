@@ -104,6 +104,14 @@ jobs:
           cat ../done-green.err
           test "$rc" -ne 0
           grep -q 'independent done execution authority is unavailable' ../done-green.err
+          for increment in minor major; do
+            set +e
+            python RepoWorkflow/repo_workflow.py --root . done "$increment" > "../done-$increment.out" 2> "../done-$increment.err"
+            rc=$?
+            set -e
+            test "$rc" -ne 0
+            grep -q 'independent done execution authority is unavailable' "../done-$increment.err"
+          done
       - name: Replay genuine RED to GREEN via RWF in one isolated checkout
         shell: bash
         run: |
@@ -204,6 +212,12 @@ jobs:
           active = subprocess.check_output(['git', 'branch', '--show-current'], text=True).strip()
           assert active == 'issue-1', active
           PY
+          set +e
+          python RepoWorkflow/repo_workflow.py --root . issue start 0 > ../rwf-invalid-start.out 2> ../rwf-invalid-start.err
+          invalid_rc=$?
+          set -e
+          test "$invalid_rc" -ne 0
+          test "$(git branch --show-current)" = 'issue-1'
       - name: Run RWF regression and integration on RWF-started issue branch
         shell: bash
         run: |
@@ -254,6 +268,12 @@ jobs:
             integration.err
             done-green.out
             done-green.err
+            done-minor.out
+            done-minor.err
+            done-major.out
+            done-major.err
+            rwf-invalid-start.out
+            rwf-invalid-start.err
             rwf-red.out
             rwf-red.err
             rwf-green.out
