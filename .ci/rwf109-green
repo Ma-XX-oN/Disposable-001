@@ -1,3 +1,4 @@
 Run GREEN, regression, integration and fail-closed done on RWF source d3c8fef54d6eff45d3c2b6fa04ef6baf1688a75d
 Retest supported regression and integration CLI at revised workbench SHA.
 Retest nested RWF runtime layout with canonical catalogue stages.
+Retest pinned canonical submodule adopted disposable workbench.
