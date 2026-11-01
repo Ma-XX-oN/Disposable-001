@@ -4,3 +4,4 @@ Retest nested RWF runtime layout with canonical catalogue stages.
 Retest pinned canonical submodule adopted disposable workbench.
 Verify observed refusal scenarios and distinct fixture test PASS without promotion.
 Retest separate regression-policy and integration-adapter fail-closed boundaries.
+Execute same-checkout RWF RED to GREEN lifecycle replay.
