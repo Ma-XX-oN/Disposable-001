@@ -223,6 +223,10 @@ jobs:
           PY
           git add .ci/branch-policy.json scripts/validate.py VERSION
           git commit -m 'Fixture: authorize issue-1 branch and execute real validation'
+          git status --short
+          git add -A
+          git diff --cached --quiet || git commit -m 'Fixture: commit remaining RWF lifecycle materialization'
+          git status --short
           set +e
           python RepoWorkflow/repo_workflow.py --root . test regression > ../rwf-regression.out 2> ../rwf-regression.err
           regression_rc=$?
