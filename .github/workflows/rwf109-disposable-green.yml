@@ -152,6 +152,7 @@ jobs:
           config_path = Path('.ci/repoworkflow.json')
           config = json.loads(config_path.read_text())
           config['versionCommand'] = ['python', 'scripts/version.py']
+          config['infoCommand'] = ['python', 'RepoWorkflow/adapters/repo-info-github.py', '--repository', 'Ma-XX-oN/Disposable-001']
           config_path.write_text(json.dumps(config, indent=2) + '\n')
           Path('VERSION').write_text('1.2.3\n')
           PY
