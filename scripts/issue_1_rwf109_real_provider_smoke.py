@@ -17,6 +17,7 @@ sys.path.insert(0, str(source / "adapters"))
 from repo_workflow.done_host_transport import (
   NativeHostTransportError, bind_native_integration_host,
 )
+from repo_workflow.integration_host_v2 import IntegrationHostError
 from adapters.repo_host_github_provider import (
   GitHubBackend, reservation_ref,
 )
@@ -65,7 +66,7 @@ def main():
   denied = False
   try:
     transport.request("ref.create", request_id, parameters)
-  except NativeHostTransportError:
+  except (NativeHostTransportError, IntegrationHostError):
     denied = True
   assert denied, "missing verifier did not fail closed"
   assert backend.get("git/ref/heads/" + default)["object"]["sha"] == original
@@ -102,7 +103,7 @@ def main():
     rejected = False
     try:
       transport.request("ref.create", request_id, parameters)
-    except NativeHostTransportError:
+    except (NativeHostTransportError, IntegrationHostError):
       rejected = True
     assert rejected, "foreign actor did not fail closed"
     try:
