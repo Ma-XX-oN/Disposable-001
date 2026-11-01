@@ -21,7 +21,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           repository: Ma-XX-oN/RepoWorkflow
-          ref: f55a953994ac2a1c10a7e7adc6e4a830671dedbe
+          ref: 64433370858a5b8f58ff4f3eb09b544399f4e03e
           path: rwf-source
           persist-credentials: false
       - uses: actions/setup-python@v5
@@ -30,7 +30,7 @@ jobs:
       - name: Assert exact RWF product revision
         shell: bash
         run: |
-          test "$(git -C rwf-source rev-parse HEAD)" = "f55a953994ac2a1c10a7e7adc6e4a830671dedbe"
+          test "$(git -C rwf-source rev-parse HEAD)" = "64433370858a5b8f58ff4f3eb09b544399f4e03e"
       - name: Exercise real disposable provider with run-scoped test verifier
         env:
           GH_TOKEN: ${{ github.token }}
