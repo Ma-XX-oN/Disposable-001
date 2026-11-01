@@ -1,0 +1,63 @@
+name: RWF 109 independent provider authorization fail-closed
+on:
+  push:
+    branches:
+      - verification-109-provider-auth-negative-20261101
+    paths:
+      - .ci/provider-negative-run
+permissions:
+  contents: read
+jobs:
+  negative-auth:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          repository: Ma-XX-oN/RepoWorkflow
+          ref: d3c8fef54d6eff45d3c2b6fa04ef6baf1688a75d
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Verify exact source
+        shell: bash
+        run: test "$(git rev-parse HEAD)" = "d3c8fef54d6eff45d3c2b6fa04ef6baf1688a75d"
+      - name: Assert valid mutation without issuer is denied and leaves no ref
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          python - <<'PY'
+          import json, os, subprocess, sys
+          from urllib.request import Request, urlopen
+
+          repo = 'Ma-XX-oN/Disposable-001'
+          guid = '11111111-1111-4111-8111-111111110109'
+          name = f'INT-ATTEMPT-issue-1/disposable-negative-{guid}'
+          ref = 'refs/heads/' + name
+          url = f'https://api.github.com/repos/{repo}/git/matching-refs/heads/INT-ATTEMPT-issue-1/disposable-negative-'
+          def observed():
+            req = Request(url, headers={'Accept':'application/vnd.github+json','User-Agent':'rwf109-isolated-negative'})
+            with urlopen(req, timeout=20) as response:
+              return json.load(response)
+          assert observed() == [], 'isolated ref exists before test'
+          assert not os.environ.get('RWF_REPO_HOST_AUTH_COMMAND'), 'external issuer unexpectedly installed'
+          payload = {
+            'schema_version': 2,
+            'repository': repo,
+            'operation': 'ref.create',
+            'request_id': 'rwf109-negative-20261101-001',
+            'parameters': {'ref': ref, 'sha': 'b2857b36dbb27fadb5974237dea9e1e5487d749b'},
+          }
+          result = subprocess.run([sys.executable, 'adapters/repo-host-integration-v2.py'],
+            input=json.dumps(payload), capture_output=True, text=True,
+            encoding='utf-8', errors='strict', check=False)
+          assert result.returncode != 0, 'unauthorized mutation accepted'
+          assert not result.stdout.strip(), 'unauthorized mutation emitted success response'
+          assert 'outcome unavailable' in result.stderr, 'expected fail-closed diagnostic missing'
+          assert observed() == [], 'unauthorized mutation created remote ref'
+          print('RWF109_UNAUTHORIZED_REF_CREATE=DENIED')
+          print('RWF109_INDEPENDENT_REF_READBACK=ABSENT')
+          print('RWF109_SOURCE=d3c8fef54d6eff45d3c2b6fa04ef6baf1688a75d')
+          PY
