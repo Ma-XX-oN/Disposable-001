@@ -36,11 +36,41 @@ jobs:
         run: |
           set -euo pipefail
           cd disposable
-          cp -a ../engine ./RepoWorkflow
-          rm -rf RepoWorkflow/.git
-          printf '/RepoWorkflow/\n' >> .git/info/exclude
           git config user.name 'RWF disposable test worker'
           git config user.email 'rwf-disposable@example.invalid'
+          git -c protocol.file.allow=always submodule add "$PWD/../engine" RepoWorkflow
+          git -C RepoWorkflow checkout d3c8fef54d6eff45d3c2b6fa04ef6baf1688a75d
+          git config -f .gitmodules submodule.RepoWorkflow.url https://github.com/Ma-XX-oN/RepoWorkflow.git
+          mkdir -p .ci .github/workflows scripts
+          cp RepoWorkflow/templates/github/ci.yml .github/workflows/ci.yml
+          rm -f .github/workflows/rwf109-disposable-acceptance.yml .github/workflows/rwf109-disposable-green.yml
+          printf '1.0.0-issue.1.1\n' > .ci/run-ci-request
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          base = Path('.ci')
+          (base / 'branch-policy.json').write_text(json.dumps({
+            'schema': 2, 'integrationBranch': 'main', 'branches': {}, 'patterns': []
+          }))
+          (base / 'github.json').write_text(json.dumps({
+            'schema': 1, 'prepareRunner': 'ubuntu-latest',
+            'runners': {'local': 'ubuntu-latest'}
+          }))
+          (base / 'repoworkflow.json').write_text(json.dumps({
+            'schema': 1,
+            'versionCommand': ['python', 'scripts/version.py'],
+            'repository': {'integrationBranch': 'main', 'authoritativeRemote': 'origin'},
+            'environments': [{
+              'id': 'local', 'required': True, 'platform': 'any',
+              'validationCommand': ['python', 'scripts/validate.py']
+            }],
+            'artifacts': []
+          }))
+          PY
+          printf 'import sys\nprint("1.0.0")\n' > scripts/version.py
+          printf 'import unittest\nassert unittest.defaultTestLoader.discover("tests")\n' > scripts/validate.py
+          git add -A
+          git commit -m 'Disposable hosted fixture: pinned RWF consumer adoption'
           python -m unittest -v tests.test_issue_1_smoke tests.test_issue_1_integration
           # RED selection/evidence from earlier workbench jobs is not transferred.
           # GREEN therefore must not be advertised as complete by this job.
