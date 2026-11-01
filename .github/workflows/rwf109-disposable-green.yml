@@ -1,0 +1,68 @@
+name: RWF 109 disposable GREEN and gate probe
+on:
+  push:
+    branches:
+      - issue-1-rwf109-done-acceptance-20261101
+    paths:
+      - .ci/rwf109-green
+permissions:
+  contents: read
+jobs:
+  green:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: disposable
+          persist-credentials: false
+      - uses: actions/checkout@v4
+        with:
+          repository: Ma-XX-oN/RepoWorkflow
+          ref: d3c8fef54d6eff45d3c2b6fa04ef6baf1688a75d
+          path: engine
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - run: python -m pip install -r engine/requirements.txt
+      - name: Assert exact source
+        shell: bash
+        run: |
+          test "$(git -C engine rev-parse HEAD)" = "d3c8fef54d6eff45d3c2b6fa04ef6baf1688a75d"
+          test "$(git -C disposable branch --show-current)" = "issue-1-rwf109-done-acceptance-20261101"
+      - name: Verify GREEN regression integration and unhappy paths through RWF
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd disposable
+          git config user.name 'RWF disposable test worker'
+          git config user.email 'rwf-disposable@example.invalid'
+          python -m unittest -v tests.test_issue_1_smoke tests.test_issue_1_integration
+          python ../engine/repo_workflow.py --root . test GREEN issue-1-lifecycle
+          python ../engine/repo_workflow.py --root . test regression
+          python ../engine/repo_workflow.py --root . test integration
+          python ../engine/repo_workflow.py --root . test results > ../green-results.json
+      - name: Verify missing external done authority fails closed
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd disposable
+          set +e
+          python ../engine/repo_workflow.py --root . done patch > ../done-green.out 2> ../done-green.err
+          rc=$?
+          set -e
+          printf 'DONE_EXIT=%s\n' "$rc"
+          cat ../done-green.out
+          cat ../done-green.err
+          test "$rc" -ne 0
+          grep -q 'independent done execution authority is unavailable' ../done-green.err
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: rwf109-disposable-green
+          path: |
+            green-results.json
+            done-green.out
+            done-green.err
+          if-no-files-found: warn
