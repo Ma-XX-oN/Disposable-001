@@ -58,6 +58,7 @@ def main():
     "parameters": parameters,
   }
   reservation = reservation_ref(request)
+  cleanup_refs = [ref, reservation]
   transport = bind_native_integration_host(
     repository=repo, engine_root=source,
     project_root=Path.cwd(),
@@ -160,6 +161,14 @@ def main():
         "-m", "RWF #109 disposable INT-CAS smoke " + run,
       )
       assert len(newer) == 40 and newer != original
+      for suffix in ("-cas", "-stale"):
+        cleanup_refs.append(reservation_ref({
+          "schema_version": 2, "repository": repo, "operation": "ref.cas",
+          "request_id": request_id + suffix,
+          "parameters": {
+            "ref": ref, "expected_sha": original, "sha": newer,
+          },
+        }))
       cas_id = request_id + "-cas"
       os.environ["RWF_TEST_REQUEST_ID"] = cas_id
       result = transport.request("ref.cas", cas_id, {
@@ -186,7 +195,7 @@ def main():
     print("PASS: unauthorized denied; actor mismatch denied; real ref created; readback; idempotency; main unchanged")
   finally:
     os.environ.pop("RWF_REPO_HOST_AUTH_COMMAND", None)
-    for reference in (ref, reservation):
+    for reference in cleanup_refs:
       try:
         backend.get("git/ref/" + reference.removeprefix("refs/"))
       except Exception as error:
