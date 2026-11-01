@@ -3,3 +3,4 @@ Retry correct consumer source cwd for smoke tests.
 Remove test-only workflow before authoritative consumer policy checks.
 Remove tracked cache files before regression/integration verification.
 Verify authoritative terminal version on consumer integration candidate c598b99bc7e4a9c2ad5799c224ea3dffdff5fedb.
+Use distinct versioned consumer integration phase after regression PASS.
