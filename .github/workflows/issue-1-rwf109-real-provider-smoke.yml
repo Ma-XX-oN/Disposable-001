@@ -31,6 +31,9 @@ jobs:
         shell: bash
         run: |
           test "$(git -C rwf-source rev-parse HEAD)" = "64433370858a5b8f58ff4f3eb09b544399f4e03e"
+      - name: Run exact-source permanent #109 CAS regression
+        working-directory: rwf-source
+        run: python -m unittest -v tests.test_issue_109_ref_cas_request_identity
       - name: Exercise real disposable provider with run-scoped test verifier
         env:
           GH_TOKEN: ${{ github.token }}
