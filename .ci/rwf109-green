@@ -14,3 +14,4 @@ Verify corrected consumer validator and clean regression candidate.
 Verify done patch/minor/major fail-closed and invalid issue start does not mutate branch.
 Final verify after obsolete RED-only CI workflow cleanup.
 Verify public issue start supported and abbreviated start rejected.
+Verify idempotent public issue start replay.
