@@ -218,6 +218,13 @@ jobs:
           set -e
           test "$invalid_rc" -ne 0
           test "$(git branch --show-current)" = 'issue-1'
+          set +e
+          python RepoWorkflow/repo_workflow.py --root . start 1 > ../rwf-short-start.out 2> ../rwf-short-start.err
+          short_rc=$?
+          set -e
+          test "$short_rc" -ne 0
+          grep -q 'unrecognised command' ../rwf-short-start.err
+          test "$(git branch --show-current)" = 'issue-1'
       - name: Run RWF regression and integration on RWF-started issue branch
         shell: bash
         run: |
@@ -274,6 +281,8 @@ jobs:
             done-major.err
             rwf-invalid-start.out
             rwf-invalid-start.err
+            rwf-short-start.out
+            rwf-short-start.err
             rwf-red.out
             rwf-red.err
             rwf-green.out
