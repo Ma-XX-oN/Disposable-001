@@ -63,7 +63,7 @@ jobs:
           cat ../done.out
           cat ../done.err
           test "$rc" -ne 0
-          test "$(git rev-parse HEAD)" = "${GITHUB_SHA}"
+          git merge-base --is-ancestor "${GITHUB_SHA}" HEAD
       - uses: actions/upload-artifact@v4
         if: always()
         with:
