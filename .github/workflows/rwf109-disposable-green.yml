@@ -202,6 +202,38 @@ jobs:
           active = subprocess.check_output(['git', 'branch', '--show-current'], text=True).strip()
           assert active == 'issue-1', active
           PY
+      - name: Run RWF regression and integration on RWF-started issue branch
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd disposable
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          policy = Path('.ci/branch-policy.json')
+          value = json.loads(policy.read_text())
+          value['branches']['issue-1'] = {'allowedDependencies': []}
+          policy.write_text(json.dumps(value, indent=2) + '\n')
+          Path('scripts/validate.py').write_text(
+            'import unittest\n'
+            'suite = unittest.defaultTestLoader.discover("tests")\n'
+            'result = unittest.TextTestRunner(verbosity=2).run(suite)\n'
+            'raise SystemExit(0 if result.wasSuccessful() else 1)\n'
+          )
+          PY
+          git add .ci/branch-policy.json scripts/validate.py VERSION
+          git commit -m 'Fixture: authorize issue-1 branch and execute real validation'
+          set +e
+          python RepoWorkflow/repo_workflow.py --root . test regression > ../rwf-regression.out 2> ../rwf-regression.err
+          regression_rc=$?
+          python RepoWorkflow/repo_workflow.py --root . test integration > ../rwf-integration.out 2> ../rwf-integration.err
+          integration_rc=$?
+          set -e
+          printf 'RWF_REGRESSION_EXIT=%s RWF_INTEGRATION_EXIT=%s\n' "$regression_rc" "$integration_rc"
+          cat ../rwf-regression.out ../rwf-regression.err ../rwf-integration.out ../rwf-integration.err
+          test "$regression_rc" -eq 0
+          test "$integration_rc" -eq 2
+          grep -q 'consumer integration requires an authoritative environment adapter' ../rwf-integration.err
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -219,4 +251,8 @@ jobs:
             rwf-green.err
             rwf-issue-info.txt
             rwf-start.json
+            rwf-regression.out
+            rwf-regression.err
+            rwf-integration.out
+            rwf-integration.err
           if-no-files-found: warn
