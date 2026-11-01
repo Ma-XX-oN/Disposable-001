@@ -9,3 +9,4 @@ Exercise RWF issue start against live GitHub issue metadata in isolated workbenc
 Retry live issue-start with explicitly configured GitHub repo-info adapter.
 Run actual RWF regression and integration after public issue start and real fixture validation.
 Retest RWF regression after committing residual lifecycle state.
+Retest RWF post-start regression with full checkout history.
