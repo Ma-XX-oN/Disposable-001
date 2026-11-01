@@ -7,6 +7,7 @@ on:
       - .ci/rwf109-green
 permissions:
   contents: read
+  issues: read
 jobs:
   green:
     runs-on: ubuntu-latest
@@ -138,6 +139,68 @@ jobs:
           assert any(row.get('kind') == 'GREEN' and row.get('result') == 'succeeded' for row in rows), rows
           assert not Path('.ci/temp-tests.json').exists()
           PY
+      - name: Exercise public issue start with live GitHub issue metadata
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          cd disposable
+          python - <<'PY'
+          from pathlib import Path
+          import json
+          config_path = Path('.ci/repoworkflow.json')
+          config = json.loads(config_path.read_text())
+          config['versionCommand'] = ['python', 'scripts/version.py']
+          config_path.write_text(json.dumps(config, indent=2) + '\n')
+          Path('VERSION').write_text('1.2.3\n')
+          PY
+          cat > scripts/version.py <<'PY'
+          from pathlib import Path
+          import sys
+          path = Path('VERSION')
+          value = path.read_text().strip()
+          args = sys.argv[1:]
+          if args:
+            assert args[:2] == ['task', '--issue'] and len(args) == 3, args
+            major, minor, patch = value.split('.')
+            value = f'{major}.{minor}.{patch}-issue.{args[2]}.0.1'
+            path.write_text(value + '\n')
+          print(value)
+          PY
+          PYTHONPATH=RepoWorkflow python - <<'PY'
+          import json
+          from pathlib import Path
+          import subprocess
+          from repo_workflow.relationship_store import RelationshipStore
+          from repo_workflow.relationships import IssueRelationships, RelationshipGraph
+          from repo_workflow.state_store import WriterIdentity
+          result = subprocess.run(
+            ['gh', 'issue', 'view', '1', '--repo', 'Ma-XX-oN/Disposable-001', '--json', 'title,state'],
+            check=True, capture_output=True, text=True
+          )
+          info = json.loads(result.stdout)
+          assert info['state'] == 'OPEN', info
+          RelationshipStore(Path.cwd()).create(
+            RelationshipGraph(issues={'1': IssueRelationships(info['title'], ())}),
+            WriterIdentity('disposable-seed', 'disposable-seed-session')
+          )
+          PY
+          git add -A
+          git commit -m 'Fixture: seed canonical relationship and version adapter'
+          python RepoWorkflow/repo_workflow.py --root . issue info 1 > ../rwf-issue-info.txt
+          python RepoWorkflow/repo_workflow.py --root . issue start 1 > ../rwf-start.json
+          python - <<'PY'
+          import json
+          import subprocess
+          from pathlib import Path
+          started = json.loads(Path('../rwf-start.json').read_text())
+          assert started['issue'] == '1', started
+          assert started['branch'] == 'issue-1', started
+          assert started['version'].startswith('1.2.3-issue.1.'), started
+          active = subprocess.check_output(['git', 'branch', '--show-current'], text=True).strip()
+          assert active == 'issue-1', active
+          PY
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -153,4 +216,6 @@ jobs:
             rwf-red.err
             rwf-green.out
             rwf-green.err
+            rwf-issue-info.txt
+            rwf-start.json
           if-no-files-found: warn
