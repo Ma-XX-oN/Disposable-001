@@ -225,6 +225,14 @@ jobs:
           test "$short_rc" -ne 0
           grep -q 'unrecognised command' ../rwf-short-start.err
           test "$(git branch --show-current)" = 'issue-1'
+          python RepoWorkflow/repo_workflow.py --root . issue start 1 > ../rwf-restart.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          first = json.loads(Path('../rwf-start.json').read_text())
+          second = json.loads(Path('../rwf-restart.json').read_text())
+          assert first == second, (first, second)
+          PY
       - name: Run RWF regression and integration on RWF-started issue branch
         shell: bash
         run: |
@@ -283,6 +291,7 @@ jobs:
             rwf-invalid-start.err
             rwf-short-start.out
             rwf-short-start.err
+            rwf-restart.json
             rwf-red.out
             rwf-red.err
             rwf-green.out
