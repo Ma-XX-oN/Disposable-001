@@ -10,3 +10,4 @@ Retry live issue-start with explicitly configured GitHub repo-info adapter.
 Run actual RWF regression and integration after public issue start and real fixture validation.
 Retest RWF regression after committing residual lifecycle state.
 Retest RWF post-start regression with full checkout history.
+Verify corrected consumer validator and clean regression candidate.
