@@ -217,7 +217,9 @@ jobs:
           value['branches']['issue-1'] = {'allowedDependencies': []}
           policy.write_text(json.dumps(value, indent=2) + '\n')
           Path('scripts/validate.py').write_text(
-            'import unittest\n'
+            'import sys, unittest\n'
+            'sys.dont_write_bytecode = True\n'
+            'sys.path.insert(0, ".")\n'
             'suite = unittest.defaultTestLoader.discover("tests")\n'
             'result = unittest.TextTestRunner(verbosity=2).run(suite)\n'
             'raise SystemExit(0 if result.wasSuccessful() else 1)\n'
@@ -228,6 +230,7 @@ jobs:
           git status --short
           git add -A
           git diff --cached --quiet || git commit -m 'Fixture: commit remaining RWF lifecycle materialization'
+          find tests -type d -name __pycache__ -prune -exec rm -rf {} +
           git status --short
           set +e
           python RepoWorkflow/repo_workflow.py --root . test regression > ../rwf-regression.out 2> ../rwf-regression.err
