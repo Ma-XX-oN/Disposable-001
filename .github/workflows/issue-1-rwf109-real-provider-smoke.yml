@@ -11,6 +11,27 @@ on:
 permissions:
   contents: write
 jobs:
+  native-cas-contract:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          repository: Ma-XX-oN/RepoWorkflow
+          ref: 64433370858a5b8f58ff4f3eb09b544399f4e03e
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Verify exact correction and run registered regression
+        shell: bash
+        run: |
+          test "$(git rev-parse HEAD)" = "64433370858a5b8f58ff4f3eb09b544399f4e03e"
+          python -m unittest -v tests.test_issue_109_ref_cas_request_identity
   smoke:
     runs-on: ubuntu-latest
     timeout-minutes: 15
