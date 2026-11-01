@@ -36,21 +36,24 @@ jobs:
         run: |
           set -euo pipefail
           cd disposable
+          cp -a ../engine ./RepoWorkflow
+          rm -rf RepoWorkflow/.git
+          printf '/RepoWorkflow/\n' >> .git/info/exclude
           git config user.name 'RWF disposable test worker'
           git config user.email 'rwf-disposable@example.invalid'
           python -m unittest -v tests.test_issue_1_smoke tests.test_issue_1_integration
           # RED selection/evidence from earlier workbench jobs is not transferred.
           # GREEN therefore must not be advertised as complete by this job.
-          python ../engine/repo_workflow.py --root . test regression
-          python ../engine/repo_workflow.py --root . test integration
-          python ../engine/repo_workflow.py --root . test results > ../green-results.json
+          python RepoWorkflow/repo_workflow.py --root . test regression
+          python RepoWorkflow/repo_workflow.py --root . test integration
+          python RepoWorkflow/repo_workflow.py --root . test results > ../green-results.json
       - name: Verify missing external done authority fails closed
         shell: bash
         run: |
           set -euo pipefail
           cd disposable
           set +e
-          python ../engine/repo_workflow.py --root . done patch > ../done-green.out 2> ../done-green.err
+          python RepoWorkflow/repo_workflow.py --root . done patch > ../done-green.out 2> ../done-green.err
           rc=$?
           set -e
           printf 'DONE_EXIT=%s\n' "$rc"
