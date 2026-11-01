@@ -107,7 +107,25 @@ def main():
     os.environ["RWF_TEST_AUTH_ACTOR"]=actor
     denied() # independent evidence issuer still missing
     os.environ["RWF_REPO_HOST_INTEGRATION_EVIDENCE_COMMAND"]=json.dumps([str(evidence)])
-    result=host.request("mit.deferred.record",request_id,params)
+    try:
+      result=host.request("mit.deferred.record",request_id,params)
+    except IntegrationHostError:
+      import importlib.util
+      spec=importlib.util.spec_from_file_location(
+        "rwf109_debug_v2",SRC/"adapters"/"repo-host-integration-v2.py")
+      assert spec and spec.loader
+      adapter=importlib.util.module_from_spec(spec)
+      spec.loader.exec_module(adapter)
+      request={"schema_version":2,"repository":REPO,
+        "operation":"mit.deferred.record","request_id":request_id,
+        "parameters":params}
+      try:
+        adapter.process(request)
+      except Exception as issue:
+        print("MIT provider classified failure:",
+          type(issue).__name__,str(issue)[:180],file=sys.stderr)
+        raise
+      raise
     assert result["event"]==event
     read=host.request("mit.deferred.read",request_id+"-read",
       {"guid":guid,"destination":DEST})
