@@ -61,6 +61,21 @@ jobs:
           assert not result.stdout.strip(), 'unauthorized mutation emitted success response'
           assert 'outcome unavailable' in result.stderr, 'expected fail-closed diagnostic missing'
           assert observed() == [], 'unauthorized mutation created remote ref'
+          cas_payload = dict(payload)
+          cas_payload['operation'] = 'ref.cas'
+          cas_payload['request_id'] = 'rwf109-negative-20261101-002'
+          cas_payload['parameters'] = {
+            'ref': ref,
+            'expected_sha': 'b2857b36dbb27fadb5974237dea9e1e5487d749b',
+            'sha': 'b2857b36dbb27fadb5974237dea9e1e5487d749b',
+          }
+          cas = subprocess.run([sys.executable, 'adapters/repo-host-integration-v2.py'],
+            input=json.dumps(cas_payload), capture_output=True, text=True,
+            encoding='utf-8', errors='strict', check=False)
+          assert cas.returncode != 0 and not cas.stdout.strip(), 'unauthorized ref.cas accepted'
+          assert 'outcome unavailable' in cas.stderr, 'expected ref.cas fail-closed diagnostic missing'
+          assert observed() == [], 'unauthorized ref.cas created remote ref'
+          print('RWF109_UNAUTHORIZED_REF_CAS=DENIED')
           print('RWF109_UNAUTHORIZED_REF_CREATE=DENIED')
           print('RWF109_INDEPENDENT_REF_READBACK=ABSENT')
           print('RWF109_SOURCE=d3c8fef54d6eff45d3c2b6fa04ef6baf1688a75d')
