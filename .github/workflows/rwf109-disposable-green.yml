@@ -17,12 +17,14 @@ jobs:
         with:
           path: disposable
           persist-credentials: false
+          fetch-depth: 0
       - uses: actions/checkout@v4
         with:
           repository: Ma-XX-oN/RepoWorkflow
           ref: d3c8fef54d6eff45d3c2b6fa04ef6baf1688a75d
           path: engine
           persist-credentials: false
+          fetch-depth: 0
       - uses: actions/setup-python@v5
         with:
           python-version: '3.13'
