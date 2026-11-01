@@ -1,5 +1,8 @@
 name: RWF109 disposable MIT defer provider acceptance
 on:
+  pull_request:
+    branches:
+      - main
   push:
     branches:
       - issue-1-rwf109-mit-defer-20261101
