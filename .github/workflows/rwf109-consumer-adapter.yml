@@ -21,7 +21,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           repository: Ma-XX-oN/RepoWorkflow
-          ref: c598b99bc7e4a9c2ad5799c224ea3dffdff5fedb
+          ref: 9d715d950f3d5465d89721e406840a4c004deb21
           path: engine
           persist-credentials: false
           fetch-depth: 0
@@ -34,7 +34,7 @@ jobs:
       - name: Assert exact source
         shell: bash
         run: |
-          test "$(git -C engine rev-parse HEAD)" = "c598b99bc7e4a9c2ad5799c224ea3dffdff5fedb"
+          test "$(git -C engine rev-parse HEAD)" = "9d715d950f3d5465d89721e406840a4c004deb21"
           test "$(git -C disposable branch --show-current)" = "issue-1-rwf109-consumer-integration-20261031"
       - name: Verify GREEN regression integration and unhappy paths through RWF
         shell: bash
@@ -44,7 +44,7 @@ jobs:
           git config user.name 'RWF disposable test worker'
           git config user.email 'rwf-disposable@example.invalid'
           git -c protocol.file.allow=always submodule add "$PWD/../engine" RepoWorkflow
-          git -C RepoWorkflow checkout c598b99bc7e4a9c2ad5799c224ea3dffdff5fedb
+          git -C RepoWorkflow checkout 9d715d950f3d5465d89721e406840a4c004deb21
           git config -f .gitmodules submodule.RepoWorkflow.url https://github.com/Ma-XX-oN/RepoWorkflow.git
           mkdir -p .ci .github/workflows scripts
           cp RepoWorkflow/templates/github/ci.yml .github/workflows/ci.yml
