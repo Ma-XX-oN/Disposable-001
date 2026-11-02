@@ -99,6 +99,34 @@ jobs:
           target.write_text(json.dumps(result,indent=2)+"\\n")
           print("RUN_TIMING "+json.dumps(result))
           PY
+          python3 - <<'PY'
+          import datetime, email.utils, json, os, pathlib, socket, struct, time, urllib.request
+          # RFC 5905 SNTP timestamps: roundtrip offset, not a server HTTP Date cache.
+          records=[]
+          for host in ["time.google.com","time.cloudflare.com","pool.ntp.org"]:
+            try:
+              sock=socket.socket(socket.AF_INET,socket.SOCK_DGRAM)
+              sock.settimeout(3)
+              packet=b"\\x1b"+47*b"\\0"
+              t0=time.time()
+              sock.sendto(packet,(host,123))
+              data,_=sock.recvfrom(512)
+              t3=time.time()
+              sock.close()
+              assert len(data)>=48
+              def ntp(v): return (v[0]-2208988800)+v[1]/2**32
+              t1=ntp(struct.unpack("!II",data[32:40]))
+              t2=ntp(struct.unpack("!II",data[40:48]))
+              offset=((t1-t0)+(t2-t3))/2
+              delay=(t3-t0)-(t2-t1)
+              records.append({"source":host,"offset_server_minus_runner_s":round(offset,4),"roundtrip_s":round(t3-t0,4),"ntp_delay_s":round(delay,4)})
+            except Exception as e:
+              records.append({"source":host,"error":str(e)})
+          out={"runner_clock_ntp_samples":records}
+          path=pathlib.Path(".ci/latency-results")/("ntp-"+os.environ["GITHUB_SHA"]+".json")
+          path.write_text(json.dumps(out,indent=2)+"\\n")
+          print("NTP_CALIBRATION "+json.dumps(out))
+          PY
           git config user.name "RWF benchmark"
           git config user.email "rwf-benchmark@users.noreply.github.com"
           git add .ci/latency-results
