@@ -1,0 +1,49 @@
+name: RWF 660 queue latency probe
+on:
+  push:
+    branches:
+      - verification-660-queue-latency-20261102
+    paths:
+      - .ci/queue-latency-probe
+permissions:
+  contents: write
+jobs:
+  timestamp:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+          persist-credentials: true
+      - name: Capture push-to-run timestamps
+        shell: bash
+        env:
+          GH_RUN_ID: ${{ github.run_id }}
+          GH_SHA: ${{ github.sha }}
+          EVENT_TIMESTAMP: ${{ github.event.head_commit.timestamp }}
+        run: |
+          set -euo pipefail
+          mkdir -p .ci/latency-results
+          now=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+          commit_time=$(git show -s --format=%cI "$GH_SHA")
+          python3 - "$GH_RUN_ID" "$GH_SHA" "$EVENT_TIMESTAMP" "$commit_time" "$now" <<'PY'
+          import datetime
+          import json
+          import pathlib
+          import sys
+          rid, sha, event, commit, started = sys.argv[1:]
+          def parse(v):
+            return datetime.datetime.fromisoformat(v.replace("Z", "+00:00"))
+          diff = (parse(started) - parse(event or commit)).total_seconds()
+          result = {"run_id":rid, "request_sha":sha, "push_event_timestamp":event,
+                    "commit_timestamp":commit, "runner_step_timestamp":started,
+                    "approx_event_to_runner_seconds":diff}
+          path=pathlib.Path(".ci/latency-results") / (sha + ".json")
+          path.write_text(json.dumps(result, indent=2)+"\\n",encoding="utf-8")
+          print(json.dumps(result))
+          PY
+          git config user.name "RWF benchmark"
+          git config user.email "rwf-benchmark@users.noreply.github.com"
+          git add .ci/latency-results
+          git commit -m "Record CI queue latency probe"
+          git push origin "HEAD:${GITHUB_REF_NAME}"
