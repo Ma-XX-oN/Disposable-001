@@ -1,0 +1,21 @@
+=== timedatectl ===
+NTP=yes
+NTPSynchronized=yes
+TimeUSec=Mon 2026-11-02 14:28:42 UTC
+RTCTimeUSec=Mon 2026-11-02 14:28:42 UTC
+=== chronyc ===
+Reference ID    : 50484330 (PHC0)
+Stratum         : 1
+Ref time (UTC)  : Mon Nov 02 14:28:32 2026
+System time     : 0.000000002 seconds fast of NTP time
+Last offset     : -0.000018820 seconds
+RMS offset      : 0.000111654 seconds
+Frequency       : 11.078 ppm slow
+Residual freq   : -0.108 ppm
+Skew            : 1.200 ppm
+Root delay      : 0.000000001 seconds
+Root dispersion : 0.000030456 seconds
+Update interval : 8.0 seconds
+Leap status     : Normal
+=== systemd-timesyncd ===
+Failed to query server: The name org.freedesktop.timesync1 was not provided by any .service files
