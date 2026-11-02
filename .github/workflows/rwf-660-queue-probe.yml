@@ -42,6 +42,38 @@ jobs:
           path.write_text(json.dumps(result, indent=2)+"\\n",encoding="utf-8")
           print(json.dumps(result))
           PY
+          python3 - <<'PY'
+          import datetime
+          import email.utils
+          import json
+          import pathlib
+          import time
+          import urllib.request
+          observations = []
+          for url in ("https://www.google.com/generate_204", "https://api.github.com", "https://www.cloudflare.com"):
+            try:
+              t0 = time.time()
+              req = urllib.request.Request(url, headers={"User-Agent": "RWF-clock-validation/1.0", "Cache-Control": "no-cache"})
+              with urllib.request.urlopen(req, timeout=8) as response:
+                date = response.headers.get("Date")
+              t1 = time.time()
+              server = email.utils.parsedate_to_datetime(date).timestamp()
+              # The Date header is second-granularity: actual server time in [server, server+1).
+              # Also allow for the request's round-trip time.
+              lower = server - t1
+              upper = server + 1 - t0
+              observations.append({"host":url, "server_date":date, "rtt_seconds":round(t1-t0,3),
+                                   "server_minus_runner_lower_seconds":round(lower,3),
+                                   "server_minus_runner_upper_seconds":round(upper,3)})
+            except Exception as exc:
+              observations.append({"host":url, "error":str(exc)})
+          good = [x for x in observations if "error" not in x]
+          verified = bool(good) and all(x["server_minus_runner_lower_seconds"] > -1 and x["server_minus_runner_upper_seconds"] < 1 for x in good)
+          result = {"observations":observations, "verified_within_one_second":verified}
+          target = pathlib.Path(".ci/latency-results") / ("clock-" + __import__("os").environ["GITHUB_SHA"] + ".json")
+          target.write_text(json.dumps(result,indent=2)+"\\n",encoding="utf-8")
+          print("CLOCK_VALIDATION " + json.dumps(result))
+          PY
           git config user.name "RWF benchmark"
           git config user.email "rwf-benchmark@users.noreply.github.com"
           git add .ci/latency-results
