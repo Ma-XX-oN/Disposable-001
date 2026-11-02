@@ -1,0 +1,16 @@
+{
+  "runner_clock_ntp_samples": [
+    {
+      "source": "time.google.com",
+      "error": "timed out"
+    },
+    {
+      "source": "time.cloudflare.com",
+      "error": "timed out"
+    },
+    {
+      "source": "pool.ntp.org",
+      "error": "timed out"
+    }
+  ]
+}\n
