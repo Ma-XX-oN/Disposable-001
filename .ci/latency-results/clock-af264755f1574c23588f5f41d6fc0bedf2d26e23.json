@@ -1,0 +1,37 @@
+{
+  "observations": [
+    {
+      "host": "https://www.google.com/generate_204",
+      "server_date": "Mon, 02 Nov 2026 14:13:22 GMT",
+      "age": null,
+      "rtt_seconds": 0.044,
+      "server_minus_runner_lower_seconds": -0.441,
+      "server_minus_runner_upper_seconds": 0.603
+    },
+    {
+      "host": "https://api.github.com/rate_limit?unique=af264755f1574c23588f5f41d6fc0bedf2d26e23",
+      "server_date": "Mon, 02 Nov 2026 14:13:21 GMT",
+      "age": null,
+      "rtt_seconds": 0.053,
+      "server_minus_runner_lower_seconds": -1.494,
+      "server_minus_runner_upper_seconds": -0.441
+    },
+    {
+      "host": "https://www.cloudflare.com",
+      "server_date": "Mon, 02 Nov 2026 14:13:22 GMT",
+      "age": "0",
+      "rtt_seconds": 0.176,
+      "server_minus_runner_lower_seconds": -0.67,
+      "server_minus_runner_upper_seconds": 0.506
+    },
+    {
+      "host": "https://github.com/?unique=af264755f1574c23588f5f41d6fc0bedf2d26e23",
+      "server_date": "Mon, 02 Nov 2026 14:13:14 GMT",
+      "age": null,
+      "rtt_seconds": 0.059,
+      "server_minus_runner_lower_seconds": -8.73,
+      "server_minus_runner_upper_seconds": -7.67
+    }
+  ],
+  "verified_within_one_second": false
+}\n
