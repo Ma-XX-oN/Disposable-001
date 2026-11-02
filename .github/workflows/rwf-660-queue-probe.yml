@@ -18,6 +18,7 @@ jobs:
       - name: Capture push-to-run timestamps
         shell: bash
         env:
+          GH_TOKEN: ${{ github.token }}
           GH_RUN_ID: ${{ github.run_id }}
           GH_SHA: ${{ github.sha }}
           EVENT_TIMESTAMP: ${{ github.event.head_commit.timestamp }}
@@ -74,6 +75,29 @@ jobs:
           target = pathlib.Path(".ci/latency-results") / ("clock-" + __import__("os").environ["GITHUB_SHA"] + ".json")
           target.write_text(json.dumps(result,indent=2)+"\\n",encoding="utf-8")
           print("CLOCK_VALIDATION " + json.dumps(result))
+          PY
+          python3 - <<'PY'
+          import datetime, json, os, pathlib, time, urllib.request
+          req=urllib.request.Request(
+            "https://api.github.com/repos/"+os.environ["GITHUB_REPOSITORY"]+
+            "/actions/runs/"+os.environ["GITHUB_RUN_ID"],
+            headers={"Authorization":"Bearer "+os.environ["GH_TOKEN"],
+                     "Accept":"application/vnd.github+json",
+                     "Cache-Control":"no-cache"})
+          with urllib.request.urlopen(req,timeout=15) as response:
+            data=json.load(response)
+          def dt(s):
+            return datetime.datetime.fromisoformat(s.replace("Z","+00:00"))
+          now=datetime.datetime.now(datetime.timezone.utc)
+          created=dt(data["created_at"])
+          updated=dt(data["updated_at"])
+          result={"run_id":data["id"],"run_created_at":data["created_at"],
+                  "run_updated_at":data["updated_at"],"run_status":data["status"],
+                  "runner_observation_at":now.isoformat(),
+                  "runner_minus_run_creation_seconds":(now-created).total_seconds()}
+          target=pathlib.Path(".ci/latency-results")/("run-"+os.environ["GITHUB_SHA"]+".json")
+          target.write_text(json.dumps(result,indent=2)+"\\n")
+          print("RUN_TIMING "+json.dumps(result))
           PY
           git config user.name "RWF benchmark"
           git config user.email "rwf-benchmark@users.noreply.github.com"
