@@ -50,19 +50,20 @@ jobs:
           import time
           import urllib.request
           observations = []
-          for url in ("https://www.google.com/generate_204", "https://api.github.com", "https://www.cloudflare.com"):
+          for url in ("https://www.google.com/generate_204", "https://api.github.com/rate_limit?unique=" + __import__("os").environ["GITHUB_SHA"], "https://www.cloudflare.com", "https://github.com/?unique=" + __import__("os").environ["GITHUB_SHA"]):
             try:
               t0 = time.time()
               req = urllib.request.Request(url, headers={"User-Agent": "RWF-clock-validation/1.0", "Cache-Control": "no-cache"})
               with urllib.request.urlopen(req, timeout=8) as response:
                 date = response.headers.get("Date")
+                age = response.headers.get("Age")
               t1 = time.time()
               server = email.utils.parsedate_to_datetime(date).timestamp()
               # The Date header is second-granularity: actual server time in [server, server+1).
               # Also allow for the request's round-trip time.
               lower = server - t1
               upper = server + 1 - t0
-              observations.append({"host":url, "server_date":date, "rtt_seconds":round(t1-t0,3),
+              observations.append({"host":url, "server_date":date, "age":age, "rtt_seconds":round(t1-t0,3),
                                    "server_minus_runner_lower_seconds":round(lower,3),
                                    "server_minus_runner_upper_seconds":round(upper,3)})
             except Exception as exc:
