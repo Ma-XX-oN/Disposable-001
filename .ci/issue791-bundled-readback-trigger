@@ -1,1 +1,2 @@
 #791 public readback CMD-21/22 against exact RWF 716880db1c5702e7059947c0a1de06038cb80355
+Rerun: unconfigured completed CMD21 is success, not expected error.
