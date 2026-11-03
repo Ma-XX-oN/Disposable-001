@@ -48,5 +48,12 @@ jobs:
           grep -Fq 'COMPLETED exit=0' <<<"$ok"
           grep -Fq 'CMD-13' <<<"$fail"
           grep -Fq 'COMPLETED exit=2' <<<"$fail"
+          set +e
+          malformed="$(python "$RUNNER_TEMP/rwf-engine/repo_workflow.py" --root "$PWD" remote-status 14 2>&1)"
+          malformed_rc=$?
+          set -e
+          printf 'CMD14 malformed rc=%s\n%s\n' "$malformed_rc" "$malformed"
+          test "$malformed_rc" -eq 2
+          grep -Fq 'CMD request argv is malformed' <<<"$malformed"
           after="$(git ls-remote --heads origin 'CMD-*')"
           test "$before" = "$after"
