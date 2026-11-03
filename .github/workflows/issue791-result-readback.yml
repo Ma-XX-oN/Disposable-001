@@ -1,0 +1,52 @@
+name: RWF 791 Public CMD Result Readback
+on:
+  push:
+    branches:
+      - 'issue-1-rwf791-lifecycle-20261103'
+    paths:
+      - '.ci/issue791-readback-trigger'
+permissions:
+  contents: read
+jobs:
+  public-readback:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Prepare exact tested RWF source
+        shell: bash
+        run: |
+          set -euo pipefail
+          git clone --quiet https://github.com/Ma-XX-oN/RepoWorkflow.git "$RUNNER_TEMP/rwf-engine"
+          git -C "$RUNNER_TEMP/rwf-engine" checkout --quiet --detach b2fbd827d44ea06b2c8090c601f82e5072204c0a
+          test "$(git -C "$RUNNER_TEMP/rwf-engine" rev-parse HEAD)" = b2fbd827d44ea06b2c8090c601f82e5072204c0a
+          python -m pip install -r "$RUNNER_TEMP/rwf-engine/requirements.txt"
+      - name: Public status completed success and failure without resubmission
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          before="$(git ls-remote --heads origin 'CMD-*')"
+          set +e
+          ok="$(python "$RUNNER_TEMP/rwf-engine/repo_workflow.py" --root "$PWD" remote-status 12 2>&1)"
+          ok_rc=$?
+          fail="$(python "$RUNNER_TEMP/rwf-engine/repo_workflow.py" --root "$PWD" remote-status 13 2>&1)"
+          fail_rc=$?
+          set -e
+          printf 'CMD12 RC=%s\n%s\n' "$ok_rc" "$ok"
+          printf 'CMD13 RC=%s\n%s\n' "$fail_rc" "$fail"
+          test "$ok_rc" -eq 0
+          test "$fail_rc" -eq 2
+          grep -Fq 'CMD-12' <<<"$ok"
+          grep -Fq 'COMPLETED exit=0' <<<"$ok"
+          grep -Fq 'CMD-13' <<<"$fail"
+          grep -Fq 'COMPLETED exit=2' <<<"$fail"
+          after="$(git ls-remote --heads origin 'CMD-*')"
+          test "$before" = "$after"
