@@ -35,8 +35,10 @@ jobs:
           mkdir -p .ci
           printf '%s\n' 'issue-1-rwf788-red' > .ci/red-green.txt
           git add -- .ci/red-green.txt
-          git commit -m 'test: select RED/GREEN group issue-1-rwf788-red'
-          git push origin HEAD:refs/heads/issue-1-rwf791-lifecycle-20261103
+          if ! git diff --cached --quiet; then
+            git commit -m 'test: select RED/GREEN group issue-1-rwf788-red'
+            git push origin HEAD:refs/heads/issue-1-rwf791-lifecycle-20261103
+          fi
       - name: Two public submissions in one checkout preserve single identity
         shell: bash
         env:
