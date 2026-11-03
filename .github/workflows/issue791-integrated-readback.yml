@@ -1,0 +1,68 @@
+name: RWF 791 Integrated Public Readback
+on:
+  push:
+    branches:
+      - issue-1-rwf791-integrated-readback-20261103
+    paths:
+      - .ci/issue791-integrated-readback-trigger
+permissions:
+  contents: read
+  actions: read
+jobs:
+  readback:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - kind: success
+            source: 9d2f68e6c71f3fb1503c233eae64f51c956b226e
+            source_branch: issue-1-rwf791-integrated-success-20261103
+            cmd: 23
+            exit: 0
+          - kind: failure
+            source: 3aa67e487d8cd35e4bd7fb7ec62753f2c85e11fe
+            source_branch: issue-1-rwf791-integrated-failure-20261103
+            cmd: 24
+            exit: 2
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ matrix.source }}
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Verify genuine public unconfigured readback
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GITHUB_TOKEN: ${{ github.token }}
+          ENGINE_SHA: c9373dc65b0bfdebb69023f842e622f51f884d65
+          SOURCE_SHA: ${{ matrix.source }}
+          SOURCE_BRANCH: ${{ matrix.source_branch }}
+          CMD_NUMBER: ${{ matrix.cmd }}
+          CMD_EXIT: ${{ matrix.exit }}
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$SOURCE_SHA"
+          test ! -e .ci/repoworkflow.json
+          git switch -c "$SOURCE_BRANCH"
+          git fetch --quiet origin '+refs/heads/CMD-*:refs/remotes/origin/CMD-*'
+          git clone --quiet https://github.com/Ma-XX-oN/RepoWorkflow.git "$RUNNER_TEMP/rwf-engine"
+          git -C "$RUNNER_TEMP/rwf-engine" checkout --quiet --detach "$ENGINE_SHA"
+          test "$(git -C "$RUNNER_TEMP/rwf-engine" rev-parse HEAD)" = "$ENGINE_SHA"
+          python -m pip install -q -r "$RUNNER_TEMP/rwf-engine/requirements.txt"
+          source_before="$(git rev-parse HEAD)"
+          refs_before="$(git ls-remote --heads origin 'CMD-*' | sort)"
+          set +e
+          result="$(python "$RUNNER_TEMP/rwf-engine/repo_workflow.py" --root "$PWD" remote-status "$CMD_NUMBER" --poll 0 2>&1)"
+          rc=$?
+          set -e
+          printf 'PUBLIC_CMD_STATUS=%s %s\n%s\n' "$CMD_NUMBER" "$rc" "$result"
+          test "$rc" -eq "$CMD_EXIT"
+          grep -Fq "CMD-$CMD_NUMBER CMD-$CMD_NUMBER-$SOURCE_BRANCH COMPLETED exit=$CMD_EXIT" <<<"$result"
+          grep -Fq 'RWF788_EXPECTED_FAIL' <<<"$result"
+          test "$(git rev-parse HEAD)" = "$source_before"
+          refs_after="$(git ls-remote --heads origin 'CMD-*' | sort)"
+          test "$refs_before" = "$refs_after"
