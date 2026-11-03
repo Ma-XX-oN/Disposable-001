@@ -1,0 +1,67 @@
+name: RWF 791 Live Concurrent CMD Transport
+on:
+  push:
+    branches:
+      - 'issue-1-rwf791-lifecycle-20261103'
+    paths:
+      - '.ci/issue791-concurrency-trigger'
+permissions:
+  contents: write
+jobs:
+  live-concurrent-transport:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Install pinned combined engine
+        shell: bash
+        run: |
+          set -euo pipefail
+          git clone --quiet https://github.com/Ma-XX-oN/RepoWorkflow.git "$RUNNER_TEMP/rwf-engine"
+          git -C "$RUNNER_TEMP/rwf-engine" checkout --quiet --detach b2fbd827d44ea06b2c8090c601f82e5072204c0a
+          test "$(git -C "$RUNNER_TEMP/rwf-engine" rev-parse HEAD)" = b2fbd827d44ea06b2c8090c601f82e5072204c0a
+          python -m pip install -r "$RUNNER_TEMP/rwf-engine/requirements.txt"
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+      - name: Two public submissions in one checkout preserve single identity
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          original="$(git rev-parse HEAD)"
+          git ls-remote --heads origin 'CMD-*' | sort > "$RUNNER_TEMP/before"
+          python "$RUNNER_TEMP/rwf-engine/repo_workflow.py" --root "$PWD" test RED issue-1-rwf788-red --remote > "$RUNNER_TEMP/first" 2>&1 &
+          first_pid=$!
+          python "$RUNNER_TEMP/rwf-engine/repo_workflow.py" --root "$PWD" test RED issue-1-rwf788-red --remote > "$RUNNER_TEMP/second" 2>&1 &
+          second_pid=$!
+          set +e
+          wait "$first_pid"
+          first_rc=$?
+          wait "$second_pid"
+          second_rc=$?
+          set -e
+          printf 'first rc=%s\n' "$first_rc"
+          cat "$RUNNER_TEMP/first"
+          printf 'second rc=%s\n' "$second_rc"
+          cat "$RUNNER_TEMP/second"
+          test "$first_rc" -eq 0
+          test "$second_rc" -eq 0
+          first_branch="$(awk '/^CMD-[0-9]+ CMD-[^ ]+ (SUBMITTED|REUSED)$/{print $2}' "$RUNNER_TEMP/first" | tail -1)"
+          second_branch="$(awk '/^CMD-[0-9]+ CMD-[^ ]+ (SUBMITTED|REUSED)$/{print $2}' "$RUNNER_TEMP/second" | tail -1)"
+          test -n "$first_branch"
+          test "$first_branch" = "$second_branch"
+          test "$(git rev-parse HEAD)" = "$original"
+          git ls-remote --heads origin 'CMD-*' | sort > "$RUNNER_TEMP/after"
+          comm -13 "$RUNNER_TEMP/before" "$RUNNER_TEMP/after" > "$RUNNER_TEMP/new"
+          test "$(wc -l < "$RUNNER_TEMP/new")" -eq 1
+          git fetch --quiet origin "refs/heads/$first_branch:refs/rwf/issue791-concurrency"
+          test "$(git rev-parse refs/rwf/issue791-concurrency^)" = "$original"
+          test "$(git diff-tree --no-commit-id --name-only -r refs/rwf/issue791-concurrency)" = '.ci/rwf'
+          test "$(git show refs/rwf/issue791-concurrency:.ci/rwf)" = 'test RED issue-1-rwf788-red --remote 0'
