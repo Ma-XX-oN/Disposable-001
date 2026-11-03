@@ -1,0 +1,15 @@
+0
+F
+======================================================================
+FAIL: test_known_behavioral_gap (tests.test_issue_1_rwf788_red.DeclaredRed.test_known_behavioral_gap)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/tmp/rwf-cmd-hpiwlet_/source/tests/test_issue_1_rwf788_red.py", line 6, in test_known_behavioral_gap
+    self.assertEqual(1, 2, "RWF788_EXPECTED_FAIL")
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 1 != 2 : RWF788_EXPECTED_FAIL
+
+----------------------------------------------------------------------
+Ran 1 test in 0.000s
+
+FAILED (failures=1)
