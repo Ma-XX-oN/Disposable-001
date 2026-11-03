@@ -28,6 +28,15 @@ jobs:
           python -m pip install -r "$RUNNER_TEMP/rwf-engine/requirements.txt"
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+      - name: Commit RED selection before concurrent public requests
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p .ci
+          printf '%s\n' 'issue-1-rwf788-red' > .ci/red-green.txt
+          git add -- .ci/red-green.txt
+          git commit -m 'test: select RED/GREEN group issue-1-rwf788-red'
+          git push origin HEAD:refs/heads/issue-1-rwf791-lifecycle-20261103
       - name: Two public submissions in one checkout preserve single identity
         shell: bash
         env:
