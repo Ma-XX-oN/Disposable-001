@@ -35,9 +35,9 @@ jobs:
           set -euo pipefail
           before="$(git ls-remote --heads origin 'CMD-*')"
           set +e
-          ok="$(python "$RUNNER_TEMP/rwf-engine/repo_workflow.py" --root "$PWD" remote-status 12 2>&1)"
+          ok="$(python "$RUNNER_TEMP/rwf-engine/repo_workflow.py" --root "$PWD" remote-status 12 --poll 0 2>&1)"
           ok_rc=$?
-          fail="$(python "$RUNNER_TEMP/rwf-engine/repo_workflow.py" --root "$PWD" remote-status 13 2>&1)"
+          fail="$(python "$RUNNER_TEMP/rwf-engine/repo_workflow.py" --root "$PWD" remote-status 13 --poll 0 2>&1)"
           fail_rc=$?
           set -e
           printf 'CMD12 RC=%s\n%s\n' "$ok_rc" "$ok"
