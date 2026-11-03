@@ -20,18 +20,17 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.13'
-      - uses: actions/checkout@v4
-        with:
-          repository: Ma-XX-oN/RepoWorkflow
-          ref: 08e47a0c7284095246d20dcaa4e0d2e8ab715954
-          path: engine-under-test
-          persist-credentials: false
+      - name: Materialize exact engine outside consumer checkout
+        shell: bash
+        run: |
+          git clone --quiet https://github.com/Ma-XX-oN/RepoWorkflow.git "$RUNNER_TEMP/rwf-engine"
+          git -C "$RUNNER_TEMP/rwf-engine" checkout --quiet --detach 08e47a0c7284095246d20dcaa4e0d2e8ab715954
       - name: Assert exact source
         shell: bash
         run: |
           set -euo pipefail
-          test "$(git -C engine-under-test rev-parse HEAD)" = 08e47a0c7284095246d20dcaa4e0d2e8ab715954
-          python -m pip install -r engine-under-test/requirements.txt
+          test "$(git -C "$RUNNER_TEMP/rwf-engine" rev-parse HEAD)" = 08e47a0c7284095246d20dcaa4e0d2e8ab715954
+          python -m pip install -r $RUNNER_TEMP/rwf-engine/requirements.txt
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
       - name: Submit same real RED through integrated CLI
@@ -41,8 +40,8 @@ jobs:
           GITHUB_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          python engine-under-test/repo_workflow.py --root "$PWD" test RED issue-1-rwf788-red --remote
-          python engine-under-test/repo_workflow.py --root "$PWD" test RED issue-1-rwf788-red --remote
+          python "$RUNNER_TEMP/rwf-engine/repo_workflow.py" --root "$PWD" test RED issue-1-rwf788-red --remote
+          python "$RUNNER_TEMP/rwf-engine/repo_workflow.py" --root "$PWD" test RED issue-1-rwf788-red --remote
           git ls-remote --heads origin 'CMD-*'
       - name: Read back completed hosted result via read-only polling
         shell: bash
@@ -51,4 +50,4 @@ jobs:
           GITHUB_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          python engine-under-test/repo_workflow.py --root "$PWD" remote-status --poll 4 6 10
+          python "$RUNNER_TEMP/rwf-engine/repo_workflow.py" --root "$PWD" remote-status --poll 4 6 10
