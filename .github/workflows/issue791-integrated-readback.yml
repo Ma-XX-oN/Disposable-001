@@ -66,3 +66,13 @@ jobs:
           test "$(git rev-parse HEAD)" = "$source_before"
           refs_after="$(git ls-remote --heads origin 'CMD-*' | sort)"
           test "$refs_before" = "$refs_after"
+          set +e
+          combined="$(python "$RUNNER_TEMP/rwf-engine/repo_workflow.py" --root "$PWD" test RED issue-1-rwf788-red --remote --poll 0 2>&1)"
+          combined_rc=$?
+          set -e
+          printf 'PUBLIC_COMBINED=%s %s\n%s\n' "$CMD_NUMBER" "$combined_rc" "$combined"
+          test "$combined_rc" -eq "$CMD_EXIT"
+          grep -Fq "CMD-$CMD_NUMBER CMD-$CMD_NUMBER-$SOURCE_BRANCH REUSED" <<<"$combined"
+          grep -Fq 'RWF788_EXPECTED_FAIL' <<<"$combined"
+          test "$(git rev-parse HEAD)" = "$source_before"
+          test "$(git ls-remote --heads origin 'CMD-*' | sort)" = "$refs_before"
