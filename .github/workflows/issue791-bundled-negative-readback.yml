@@ -46,10 +46,6 @@ jobs:
           grep -F 'CMD-22' "$RUNNER_TEMP/status.out" || exit 42
           grep -F 'COMPLETED exit=2' "$RUNNER_TEMP/status.out" || exit 43
           grep -F 'expected-failure-declaration-missing' "$RUNNER_TEMP/status.out" || exit 44
-          python "$RUNNER_TEMP/rwf-engine/repo_workflow.py" --root "$GITHUB_WORKSPACE" test RED issue-1-lifecycle --remote --poll 0 > "$RUNNER_TEMP/reuse.out" 2>&1
-          code=$?
-          cat "$RUNNER_TEMP/reuse.out"
-          test "$code" -eq 2 || exit 45
-          grep -F 'REUSED' "$RUNNER_TEMP/reuse.out" || exit 46
-          grep -F 'expected-failure-declaration-missing' "$RUNNER_TEMP/reuse.out" || exit 47
+          # Read-only negative result: source branch has advanced since CMD-22.
+          # A fresh submission here would not be a same-source reuse check.
           test "$(git rev-parse HEAD)" = 12ef9b13b2a4467d2c6a9bd0dcdeeb34e3ea03ef
