@@ -37,6 +37,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
+          set +e
           set -uo pipefail
           python "$RUNNER_TEMP/rwf-engine/repo_workflow.py" --root "$GITHUB_WORKSPACE" remote-status 22 --poll 0 > "$RUNNER_TEMP/status.out" 2>&1
           code=$?
