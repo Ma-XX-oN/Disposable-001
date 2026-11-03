@@ -4,7 +4,7 @@ name: RepoWorkflow CMD Forwarding
 on:
   push:
     branches:
-      - 'CMD-*'
+      - 'CMD-**'
     paths:
       - '.ci/rwf'
 
