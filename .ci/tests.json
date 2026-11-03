@@ -23,6 +23,17 @@
         "type": "integration",
         "name": "tests.test_issue_1_integration"
       }
+    },
+    {
+      "test-harness": "unittest",
+      "issue-1-rwf788-red": {
+        "type": "regression",
+        "name": "tests.test_issue_1_rwf788_red",
+        "expected-red": {
+          "exit-code": 1,
+          "output-contains": "RWF788_EXPECTED_FAIL"
+        }
+      }
     }
   ],
   "aliases": {}
