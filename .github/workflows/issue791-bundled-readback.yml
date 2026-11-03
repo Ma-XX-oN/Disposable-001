@@ -1,0 +1,98 @@
+name: RWF 791 Bundled CMD Public Readback
+on:
+  push:
+    branches:
+      - issue-1-rwf791-bundled-pin-20261103
+    paths:
+      - .ci/issue791-bundled-readback-trigger
+permissions:
+  contents: read
+  actions: read
+jobs:
+  public-readback:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: 12ef9b13b2a4467d2c6a9bd0dcdeeb34e3ea03ef
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Verify exact source and install accepted candidate
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = 12ef9b13b2a4467d2c6a9bd0dcdeeb34e3ea03ef
+          git switch -c issue-1-rwf791-bundled-pin-20261103
+          git clone --quiet https://github.com/Ma-XX-oN/RepoWorkflow.git "$RUNNER_TEMP/rwf-engine"
+          git -C "$RUNNER_TEMP/rwf-engine" checkout --quiet --detach 716880db1c5702e7059947c0a1de06038cb80355
+          test "$(git -C "$RUNNER_TEMP/rwf-engine" rev-parse HEAD)" = 716880db1c5702e7059947c0a1de06038cb80355
+          python -m pip install -r "$RUNNER_TEMP/rwf-engine/requirements.txt"
+      - name: Public CLI completed success and failure, no CMD mutation
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+          import json
+          import os
+          adapter = str(Path(os.environ['RUNNER_TEMP']) / 'rwf-engine/adapters/repo-info-ci-github.py')
+          cfg = {
+            'schema': 1,
+            'versionCommand': ['python', '--version'],
+            'infoCommand': ['python', adapter,
+              '--repository', 'Ma-XX-oN/Disposable-001',
+              '--workflow', 'remote-rwf.yml'],
+            'repository': {'integrationBranch': 'main', 'authoritativeRemote': 'origin'},
+            'environments': [{'id': 'smoke', 'validationCommand': ['python','--version']}],
+            'artifacts': [],
+          }
+          Path('.ci/repoworkflow.json').write_text(json.dumps(cfg)+'\n',encoding='utf-8')
+          PY
+          before="$(git ls-remote --heads origin 'CMD-*' | sort)"
+          first="$(python "$RUNNER_TEMP/rwf-engine/repo_workflow.py" --root "$PWD" remote-status 21 --poll 0 2>&1)"
+          printf 'CMD21_STATUS=%s\n' "$first"
+          grep -Fq 'CMD-21' <<<"$first"
+          grep -Fq 'COMPLETED exit=0' <<<"$first"
+          grep -Fq 'RWF788_EXPECTED_FAIL' <<<"$first"
+          set +e
+          second="$(python "$RUNNER_TEMP/rwf-engine/repo_workflow.py" --root "$PWD" remote-status 22 --poll 0 2>&1)"
+          rc=$?
+          set -e
+          printf 'CMD22_RC=%s\n%s\n' "$rc" "$second"
+          test "$rc" -eq 2
+          grep -Fq 'CMD-22' <<<"$second"
+          grep -Fq 'COMPLETED exit=2' <<<"$second"
+          grep -Fq 'expected-failure-declaration-missing' <<<"$second"
+          after="$(git ls-remote --heads origin 'CMD-*' | sort)"
+          test "$before" = "$after"
+          test "$(git rev-parse HEAD)" = 12ef9b13b2a4467d2c6a9bd0dcdeeb34e3ea03ef
+      - name: Show accepted unconfigured adapter discovery and old #790 failure
+        shell: bash
+        env:
+          PYTHONPATH: ${{ runner.temp }}/rwf-engine
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          rm .ci/repoworkflow.json
+          python - <<'PY'
+          from pathlib import Path
+          from repo_workflow.repo_info_adapter import resolve_info_config
+          cfg=resolve_info_config(Path.cwd())
+          command=cfg['infoCommand']
+          assert any(part.endswith('repo-info-ci-github.py') for part in command), command
+          assert command[-4:]==['--repository','Ma-XX-oN/Disposable-001','--workflow','remote-rwf.yml'], command
+          print('UNCONFIGURED_ADAPTER_DISCOVERED')
+          PY
+          set +e
+          output="$(python "$RUNNER_TEMP/rwf-engine/repo_workflow.py" --root "$PWD" remote-status 21 --poll 0 2>&1)"
+          rc=$?
+          set -e
+          printf 'UNCONFIGURED_PUBLIC_RC=%s\n%s\n' "$rc" "$output"
+          test "$rc" -eq 2
+          grep -Fq 'missing RepoWorkflow configuration' <<<"$output"
