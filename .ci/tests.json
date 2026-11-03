@@ -31,7 +31,7 @@
         "name": "tests.test_issue_1_rwf788_red",
         "expected-red": {
           "exit-code": 1,
-          "output-contains": "RWF788_EXPECTED_FAIL"
+          "output-contains": "RWF788_WRONG_EXPECTATION"
         }
       }
     }
