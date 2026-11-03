@@ -1,4 +1,4 @@
-name: RWF 791 Public Negative Reuse Through Hosted Result
+name: RWF 791 Negative Public CMD Reuse
 on:
   push:
     branches:
@@ -15,23 +15,23 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: ${{ github.event.before }}
+          ref: 458b5c0dbaf6759231792fb714b80c26de1f1a54
           fetch-depth: 0
       - uses: actions/setup-python@v5
         with:
           python-version: '3.13'
-      - name: Establish exact original source branch
+      - name: Prepare original request source and exact engine
         shell: bash
         run: |
           set -euo pipefail
-          test "$(git rev-parse HEAD)" = '${{ github.event.before }}'
+          test "$(git rev-parse HEAD)" = 458b5c0dbaf6759231792fb714b80c26de1f1a54
           git switch -c issue-1-rwf791-negative-20261103
           test "$(git show HEAD:.ci/red-green.txt)" = issue-1-rwf788-red
           git clone --quiet https://github.com/Ma-XX-oN/RepoWorkflow.git "$RUNNER_TEMP/rwf-engine"
           git -C "$RUNNER_TEMP/rwf-engine" checkout --quiet --detach b2fbd827d44ea06b2c8090c601f82e5072204c0a
           test "$(git -C "$RUNNER_TEMP/rwf-engine" rev-parse HEAD)" = b2fbd827d44ea06b2c8090c601f82e5072204c0a
           python -m pip install -r "$RUNNER_TEMP/rwf-engine/requirements.txt"
-      - name: Public request reuses completed genuine hosted CMD
+      - name: Public unpolled CMD reuse followed by completed read-only poll
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
@@ -48,34 +48,26 @@ jobs:
             'infoCommand': ['python', adapter,
               '--repository', 'Ma-XX-oN/Disposable-001',
               '--workflow', 'remote-rwf.yml'],
-            'repository': {'integrationBranch':'main', 'authoritativeRemote':'origin'},
-            'environments': [{'id':'smoke', 'validationCommand':['python','--version']}],
+            'repository': {'integrationBranch':'main','authoritativeRemote':'origin'},
+            'environments': [{'id':'smoke','validationCommand':['python','--version']}],
             'artifacts': [],
           }
-          Path('.ci/repoworkflow.json').write_text(json.dumps(cfg)+'\n',encoding='utf-8')
+          Path('.ci/repoworkflow.json').write_text(json.dumps(cfg)+'\n', encoding='utf-8')
           PY
-          source="$(git rev-parse HEAD)"
           before="$(git ls-remote --heads origin 'CMD-*' | sort)"
-          submission="$(python "$RUNNER_TEMP/rwf-engine/repo_workflow.py" --root "$PWD" test RED issue-1-rwf788-red --remote 2>&1)"
-          printf 'PUBLIC_SUBMISSION=%s\n' "$submission"
-          grep -Eq '^CMD-20 CMD-20-issue-1-rwf791-negative-20261103 REUSED          rc=$?
-          set -e
-          printf 'PUBLIC_REUSE_RC=%s\n%s\n' "$rc" "$result"
-          test "$rc" -ne 0
-          grep -Fq "CMD-20 CMD-20-issue-1-rwf791-negative-20261103 COMPLETED exit=$rc" <<<"$result"
-          grep -Fq 'RWF788_EXPECTED_FAIL' <<<"$result"
-          test "$(git rev-parse HEAD)" = "$source"
-          after="$(git ls-remote --heads origin 'CMD-*' | sort)"
-          test "$before" = "$after"
- <<<"$submission"
+          source="$(git rev-parse HEAD)"
           set +e
+          submission="$(python "$RUNNER_TEMP/rwf-engine/repo_workflow.py" --root "$PWD" test RED issue-1-rwf788-red --remote 2>&1)"
+          submit_rc=$?
           result="$(python "$RUNNER_TEMP/rwf-engine/repo_workflow.py" --root "$PWD" remote-status 20 --poll 0 2>&1)"
-          rc=$?
+          result_rc=$?
           set -e
-          printf 'PUBLIC_REUSE_RC=%s\n%s\n' "$rc" "$result"
-          test "$rc" -ne 0
-          grep -Eq '^CMD-20 CMD-20-issue-1-rwf791-negative-20261103 REUSED$' <<<"$result"
-          grep -Fq "CMD-20 CMD-20-issue-1-rwf791-negative-20261103 COMPLETED exit=$rc" <<<"$result"
+          printf 'SUBMIT_RC=%s\n%s\n' "$submit_rc" "$submission"
+          printf 'RESULT_RC=%s\n%s\n' "$result_rc" "$result"
+          test "$submit_rc" -eq 0
+          grep -Fq "CMD-20 CMD-20-issue-1-rwf791-negative-20261103 REUSED" <<<"$submission"
+          test "$result_rc" -ne 0
+          grep -Fq "CMD-20 CMD-20-issue-1-rwf791-negative-20261103 COMPLETED exit=$result_rc" <<<"$result"
           grep -Fq 'RWF788_EXPECTED_FAIL' <<<"$result"
           test "$(git rev-parse HEAD)" = "$source"
           after="$(git ls-remote --heads origin 'CMD-*' | sort)"
