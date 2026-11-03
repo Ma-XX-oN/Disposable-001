@@ -9,7 +9,7 @@ on:
       - '.ci/rwf'
 
 permissions:
-  contents: read
+  contents: write
 
 concurrency:
   group: rwf-cmd-${{ github.ref }}
