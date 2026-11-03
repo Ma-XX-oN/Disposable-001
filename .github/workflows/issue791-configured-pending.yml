@@ -62,3 +62,41 @@ jobs:
           grep -Fq 'PENDING (not-observed)' <<<"$out"
           after="$(git ls-remote --heads origin 'CMD-*')"
           test "$before" = "$after"
+
+      - name: Diagnose unconfigured provider fallback interface
+        shell: bash
+        env:
+          PYTHONPATH: ${{ runner.temp }}/rwf-engine
+          GH_TOKEN: ${{ github.token }}
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          rm .ci/repoworkflow.json
+          git fetch --quiet origin refs/heads/CMD-16-issue-1-rwf791-lifecycle-20261103:refs/rwf/issue791-fallback
+          python - <<'PY'
+          from pathlib import Path
+          import subprocess
+          from repo_workflow.repo_info_adapter import (
+            RepoInfoError, resolve_info_config, ci_invocation_status,
+          )
+          root = Path.cwd()
+          revision = subprocess.check_output([
+            'git', 'log', '-1', '--format=%H', 'refs/rwf/issue791-fallback',
+            '--', '.ci/rwf',
+          ], text=True).strip()
+          assert len(revision) == 40
+          configuration = resolve_info_config(root)
+          command = configuration['infoCommand']
+          assert any(part.endswith('/repo-info-github.py') for part in command)
+          try:
+            ci_invocation_status(
+              root, configuration,
+              'CMD-16-issue-1-rwf791-lifecycle-20261103', revision, 0,
+            )
+          except RepoInfoError as exc:
+            detail = str(exc)
+            print('UNCONFIGURED_FALLBACK_FAILED:', detail)
+            assert 'usage: repository' in detail
+          else:
+            raise AssertionError('legacy adapter unexpectedly accepted CI status')
+          PY
