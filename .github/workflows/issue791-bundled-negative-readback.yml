@@ -1,0 +1,54 @@
+name: RWF791 Bundled CMD22 Negative Readback
+on:
+  push:
+    branches:
+      - 'issue-1-rwf791-bundled-negative-readback-20261103'
+    paths:
+      - '.ci/issue791-bundled-negative-trigger'
+permissions:
+  contents: read
+  actions: read
+jobs:
+  readback:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: 12ef9b13b2a4467d2c6a9bd0dcdeeb34e3ea03ef
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Establish exact consumer and current public client
+        shell: bash
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = 12ef9b13b2a4467d2c6a9bd0dcdeeb34e3ea03ef
+          git switch -c issue-1-rwf791-bundled-pin-20261103
+          git fetch --no-tags origin '+refs/heads/CMD-22-issue-1-rwf791-bundled-pin-20261103:refs/remotes/origin/CMD-22-issue-1-rwf791-bundled-pin-20261103'
+          git clone --quiet https://github.com/Ma-XX-oN/RepoWorkflow.git "$RUNNER_TEMP/rwf-engine"
+          git -C "$RUNNER_TEMP/rwf-engine" checkout --quiet --detach c9373dc65b0bfdebb69023f842e622f51f884d65
+          test "$(git -C "$RUNNER_TEMP/rwf-engine" rev-parse HEAD)" = c9373dc65b0bfdebb69023f842e622f51f884d65
+          python -m pip install -r "$RUNNER_TEMP/rwf-engine/requirements.txt"
+      - name: Verify public negative result, exit, diagnostics and idempotence
+        shell: bash
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -uo pipefail
+          python "$RUNNER_TEMP/rwf-engine/repo_workflow.py" --root "$GITHUB_WORKSPACE" remote-status 22 --poll 0 > "$RUNNER_TEMP/status.out" 2>&1
+          code=$?
+          cat "$RUNNER_TEMP/status.out"
+          test "$code" -eq 2 || exit 41
+          grep -F 'CMD-22' "$RUNNER_TEMP/status.out" || exit 42
+          grep -F 'COMPLETED exit=2' "$RUNNER_TEMP/status.out" || exit 43
+          grep -F 'expected-failure-declaration-missing' "$RUNNER_TEMP/status.out" || exit 44
+          python "$RUNNER_TEMP/rwf-engine/repo_workflow.py" --root "$GITHUB_WORKSPACE" test RED issue-1-lifecycle --remote --poll 0 > "$RUNNER_TEMP/reuse.out" 2>&1
+          code=$?
+          cat "$RUNNER_TEMP/reuse.out"
+          test "$code" -eq 2 || exit 45
+          grep -F 'REUSED' "$RUNNER_TEMP/reuse.out" || exit 46
+          grep -F 'expected-failure-declaration-missing' "$RUNNER_TEMP/reuse.out" || exit 47
+          test "$(git rev-parse HEAD)" = 12ef9b13b2a4467d2c6a9bd0dcdeeb34e3ea03ef
