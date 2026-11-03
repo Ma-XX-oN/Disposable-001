@@ -1,4 +1,4 @@
-name: RWF 791 Public Reuse Through Hosted Result
+name: RWF 791 Positive Public CMD Reuse
 on:
   push:
     branches:
@@ -20,7 +20,7 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.13'
-      - name: Establish exact original source branch
+      - name: Prepare original request source and exact engine
         shell: bash
         run: |
           set -euo pipefail
@@ -31,7 +31,7 @@ jobs:
           git -C "$RUNNER_TEMP/rwf-engine" checkout --quiet --detach b2fbd827d44ea06b2c8090c601f82e5072204c0a
           test "$(git -C "$RUNNER_TEMP/rwf-engine" rev-parse HEAD)" = b2fbd827d44ea06b2c8090c601f82e5072204c0a
           python -m pip install -r "$RUNNER_TEMP/rwf-engine/requirements.txt"
-      - name: Public request reuses completed genuine hosted CMD
+      - name: Public unpolled CMD reuse followed by completed read-only poll
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
@@ -48,34 +48,26 @@ jobs:
             'infoCommand': ['python', adapter,
               '--repository', 'Ma-XX-oN/Disposable-001',
               '--workflow', 'remote-rwf.yml'],
-            'repository': {'integrationBranch':'main', 'authoritativeRemote':'origin'},
-            'environments': [{'id':'smoke', 'validationCommand':['python','--version']}],
+            'repository': {'integrationBranch':'main','authoritativeRemote':'origin'},
+            'environments': [{'id':'smoke','validationCommand':['python','--version']}],
             'artifacts': [],
           }
-          Path('.ci/repoworkflow.json').write_text(json.dumps(cfg)+'\n',encoding='utf-8')
+          Path('.ci/repoworkflow.json').write_text(json.dumps(cfg)+'\n', encoding='utf-8')
           PY
-          source="$(git rev-parse HEAD)"
           before="$(git ls-remote --heads origin 'CMD-*' | sort)"
-          submission="$(python "$RUNNER_TEMP/rwf-engine/repo_workflow.py" --root "$PWD" test RED issue-1-rwf788-red --remote 2>&1)"
-          printf 'PUBLIC_SUBMISSION=%s\n' "$submission"
-          grep -Eq '^CMD-18 CMD-18-issue-1-rwf791-reuse-20261103 REUSED          rc=$?
-          set -e
-          printf 'PUBLIC_REUSE_RC=%s\n%s\n' "$rc" "$result"
-          test "$rc" -eq 0
-          grep -Fq 'CMD-18 CMD-18-issue-1-rwf791-reuse-20261103 COMPLETED exit=0' <<<"$result"
-          grep -Fq 'RWF788_EXPECTED_FAIL' <<<"$result"
-          test "$(git rev-parse HEAD)" = "$source"
-          after="$(git ls-remote --heads origin 'CMD-*' | sort)"
-          test "$before" = "$after"
- <<<"$submission"
+          source="$(git rev-parse HEAD)"
           set +e
+          submission="$(python "$RUNNER_TEMP/rwf-engine/repo_workflow.py" --root "$PWD" test RED issue-1-rwf788-red --remote 2>&1)"
+          submit_rc=$?
           result="$(python "$RUNNER_TEMP/rwf-engine/repo_workflow.py" --root "$PWD" remote-status 18 --poll 0 2>&1)"
-          rc=$?
+          result_rc=$?
           set -e
-          printf 'PUBLIC_REUSE_RC=%s\n%s\n' "$rc" "$result"
-          test "$rc" -eq 0
-          grep -Eq '^CMD-18 CMD-18-issue-1-rwf791-reuse-20261103 REUSED$' <<<"$result"
-          grep -Fq 'CMD-18 CMD-18-issue-1-rwf791-reuse-20261103 COMPLETED exit=0' <<<"$result"
+          printf 'SUBMIT_RC=%s\n%s\n' "$submit_rc" "$submission"
+          printf 'RESULT_RC=%s\n%s\n' "$result_rc" "$result"
+          test "$submit_rc" -eq 0
+          grep -Fq "CMD-18 CMD-18-issue-1-rwf791-reuse-20261103 REUSED" <<<"$submission"
+          test "$result_rc" -eq 0
+          grep -Fq "CMD-18 CMD-18-issue-1-rwf791-reuse-20261103 COMPLETED exit=$result_rc" <<<"$result"
           grep -Fq 'RWF788_EXPECTED_FAIL' <<<"$result"
           test "$(git rev-parse HEAD)" = "$source"
           after="$(git ls-remote --heads origin 'CMD-*' | sort)"
