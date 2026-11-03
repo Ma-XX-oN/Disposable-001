@@ -1,0 +1,54 @@
+name: RWF 791 Disposable combined-host acceptance
+on:
+  push:
+    branches:
+      - 'issue-1-rwf791-lifecycle-20261103'
+    paths:
+      - '.ci/issue791-trigger'
+permissions:
+  contents: write
+  actions: read
+jobs:
+  live-request:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: true
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - uses: actions/checkout@v4
+        with:
+          repository: Ma-XX-oN/RepoWorkflow
+          ref: 08e47a0c7284095246d20dcaa4e0d2e8ab715954
+          path: engine-under-test
+          persist-credentials: false
+      - name: Assert exact source
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git -C engine-under-test rev-parse HEAD)" = 08e47a0c7284095246d20dcaa4e0d2e8ab715954
+          python -m pip install -r engine-under-test/requirements.txt
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+      - name: Submit same real RED through integrated CLI
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          python engine-under-test/repo_workflow.py --root "$PWD" test RED issue-1-rwf788-red --remote
+          python engine-under-test/repo_workflow.py --root "$PWD" test RED issue-1-rwf788-red --remote
+          git ls-remote --heads origin 'CMD-*'
+      - name: Read back completed hosted result via read-only polling
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          python engine-under-test/repo_workflow.py --root "$PWD" remote-status --poll 4 6 10
