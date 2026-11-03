@@ -72,7 +72,7 @@ jobs:
           after="$(git ls-remote --heads origin 'CMD-*' | sort)"
           test "$before" = "$after"
           test "$(git rev-parse HEAD)" = 12ef9b13b2a4467d2c6a9bd0dcdeeb34e3ea03ef
-      - name: Show accepted unconfigured adapter discovery and old #790 failure
+      - name: Verify accepted default adapter and unconfigured terminal readback
         shell: bash
         env:
           PYTHONPATH: ${{ runner.temp }}/rwf-engine
@@ -94,5 +94,7 @@ jobs:
           rc=$?
           set -e
           printf 'UNCONFIGURED_PUBLIC_RC=%s\n%s\n' "$rc" "$output"
-          test "$rc" -eq 2
-          grep -Fq 'missing RepoWorkflow configuration' <<<"$output"
+          test "$rc" -eq 0
+          grep -Fq 'CMD-21' <<<"$output"
+          grep -Fq 'COMPLETED exit=0' <<<"$output"
+          grep -Fq 'RWF788_EXPECTED_FAIL' <<<"$output"
