@@ -1,0 +1,68 @@
+name: RWF 791 Integrated Genuine Submission and Retry Safety
+on:
+  push:
+    branches:
+      - issue-1-rwf791-race-v2-20261103
+    paths:
+      - .ci/issue791-concurrent-trigger
+permissions:
+  contents: write
+  actions: read
+jobs:
+  race:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: true
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Concurrent public submissions and threshold no-retry
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          git switch -C issue-1-rwf791-race-v2-20261103
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          test ! -e .ci/repoworkflow.json
+          git clone --quiet https://github.com/Ma-XX-oN/RepoWorkflow.git "$RUNNER_TEMP/rwf-engine"
+          git -C "$RUNNER_TEMP/rwf-engine" checkout --quiet --detach c9373dc65b0bfdebb69023f842e622f51f884d65
+          test "$(git -C "$RUNNER_TEMP/rwf-engine" rev-parse HEAD)" = c9373dc65b0bfdebb69023f842e622f51f884d65
+          python -m pip install -q -r "$RUNNER_TEMP/rwf-engine/requirements.txt"
+          source_tip="$(git rev-parse HEAD)"
+          before="$(git ls-remote --heads origin 'CMD-*' | sort)"
+          set +e
+          python "$RUNNER_TEMP/rwf-engine/repo_workflow.py" --root "$PWD" test RED issue-1-rwf788-red --remote > "$RUNNER_TEMP/one.txt" 2>&1 &
+          p1=$!
+          python "$RUNNER_TEMP/rwf-engine/repo_workflow.py" --root "$PWD" test RED issue-1-rwf788-red --remote > "$RUNNER_TEMP/two.txt" 2>&1 &
+          p2=$!
+          wait "$p1"
+          first_rc=$?
+          wait "$p2"
+          second_rc=$?
+          set -e
+          printf 'RACE_FIRST_RC=%s\n%s\n' "$first_rc" "$(cat "$RUNNER_TEMP/one.txt")"
+          printf 'RACE_SECOND_RC=%s\n%s\n' "$second_rc" "$(cat "$RUNNER_TEMP/two.txt")"
+          test "$first_rc" -eq 0
+          test "$second_rc" -eq 0
+          grep -Eq '^CMD-[0-9]+ CMD-[0-9]+-issue-1-rwf791-race-v2-20261103 (REUSED|SUBMITTED)$' "$RUNNER_TEMP/one.txt"
+          grep -Eq '^CMD-[0-9]+ CMD-[0-9]+-issue-1-rwf791-race-v2-20261103 (REUSED|SUBMITTED)$' "$RUNNER_TEMP/two.txt"
+          after="$(git ls-remote --heads origin 'CMD-*' | sort)"
+          added="$(comm -13 <(printf '%s\n' "$before") <(printf '%s\n' "$after"))"
+          test "$(printf '%s\n' "$added" | grep -c 'refs/heads/CMD-')" -eq 1
+          sleep 17
+          set +e
+          again="$(python "$RUNNER_TEMP/rwf-engine/repo_workflow.py" --root "$PWD" test RED issue-1-rwf788-red --remote 2>&1)"
+          again_rc=$?
+          set -e
+          printf 'AFTER_17_SEC_RC=%s\n%s\n' "$again_rc" "$again"
+          test "$again_rc" -eq 0
+          grep -Eq '^CMD-[0-9]+ CMD-[0-9]+-issue-1-rwf791-race-v2-20261103 REUSED$' <<<"$again"
+          test "$(git rev-parse HEAD)" = "$source_tip"
+          test "$(git ls-remote --heads origin 'CMD-*' | sort)" = "$after"
