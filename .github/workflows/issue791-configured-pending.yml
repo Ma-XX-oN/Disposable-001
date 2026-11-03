@@ -1,0 +1,64 @@
+name: RWF 791 Configured Pending Status
+on:
+  push:
+    branches:
+      - 'issue-1-rwf791-lifecycle-20261103'
+    paths:
+      - '.ci/issue791-pending-trigger'
+permissions:
+  contents: read
+  actions: read
+jobs:
+  pending-status:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Install exact combined RWF source
+        shell: bash
+        run: |
+          set -euo pipefail
+          git clone --quiet https://github.com/Ma-XX-oN/RepoWorkflow.git "$RUNNER_TEMP/rwf-engine"
+          git -C "$RUNNER_TEMP/rwf-engine" checkout --quiet --detach b2fbd827d44ea06b2c8090c601f82e5072204c0a
+          test "$(git -C "$RUNNER_TEMP/rwf-engine" rev-parse HEAD)" = b2fbd827d44ea06b2c8090c601f82e5072204c0a
+          python -m pip install -r "$RUNNER_TEMP/rwf-engine/requirements.txt"
+      - name: Real provider not-observed is PENDING, no retry or mutation
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          config = {
+            'schema': 1,
+            'versionCommand': ['python', '--version'],
+            'infoCommand': [
+              'python', os.environ['RUNNER_TEMP'] + '/rwf-engine/adapters/repo-info-ci-github.py',
+              '--repository', 'Ma-XX-oN/Disposable-001',
+              '--workflow', 'remote-rwf.yml',
+            ],
+            'repository': {'integrationBranch': 'main', 'authoritativeRemote': 'origin'},
+            'environments': [{'id': 'smoke', 'validationCommand': ['python', '--version']}],
+            'artifacts': [],
+          }
+          Path('.ci/repoworkflow.json').write_text(json.dumps(config) + '\n', encoding='utf-8')
+          PY
+          before="$(git ls-remote --heads origin 'CMD-*')"
+          set +e
+          out="$(python "$RUNNER_TEMP/rwf-engine/repo_workflow.py" --root "$PWD" remote-status 16 2>&1)"
+          code=$?
+          set -e
+          printf 'pending rc=%s\n%s\n' "$code" "$out"
+          test "$code" -eq 75
+          grep -Fq 'CMD-16' <<<"$out"
+          grep -Fq 'PENDING (not-observed)' <<<"$out"
+          after="$(git ls-remote --heads origin 'CMD-*')"
+          test "$before" = "$after"
