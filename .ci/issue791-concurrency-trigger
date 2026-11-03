@@ -1,3 +1,4 @@
 RWF #791 concurrent exact-source public CMD submissions b2fbd827d44ea06b2c8090c601f82e5072204c0a
 Run 2: commit selection serially before concurrent submissions.
 Run 3: real provider retry denied without fencing.
+Run 4: selection fixture idempotent; retry denied.
