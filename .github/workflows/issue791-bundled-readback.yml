@@ -1,0 +1,48 @@
+name: RWF791 Bundled CMD28 Genuine Readback
+on:
+  push:
+    branches:
+      - 'issue-1-rwf791-bundled-readback-20261103'
+    paths:
+      - '.ci/issue791-bundled-readback-trigger'
+permissions:
+  contents: read
+  actions: read
+jobs:
+  readback:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: 2d150cbaf8dcfd20c6a7d785e49667eee806cd93
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Check exact source and prepare public client
+        shell: bash
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = 2d150cbaf8dcfd20c6a7d785e49667eee806cd93
+          git switch -c issue-1-rwf791-bundled-live-20261103
+          git fetch --no-tags origin '+refs/heads/CMD-28-issue-1-rwf791-bundled-live-20261103:refs/remotes/origin/CMD-28-issue-1-rwf791-bundled-live-20261103'
+          git clone --quiet https://github.com/Ma-XX-oN/RepoWorkflow.git "$RUNNER_TEMP/rwf-engine"
+          git -C "$RUNNER_TEMP/rwf-engine" checkout --quiet --detach c9373dc65b0bfdebb69023f842e622f51f884d65
+          test "$(git -C "$RUNNER_TEMP/rwf-engine" rev-parse HEAD)" = c9373dc65b0bfdebb69023f842e622f51f884d65
+          python -m pip install -r "$RUNNER_TEMP/rwf-engine/requirements.txt"
+      - name: Verify actual public CMD result and reusable combined CLI
+        shell: bash
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          python "$RUNNER_TEMP/rwf-engine/repo_workflow.py" --root "$GITHUB_WORKSPACE" remote-status 28 --poll 0 > "$RUNNER_TEMP/status.out" 2>&1
+          cat "$RUNNER_TEMP/status.out"
+          grep -F 'CMD-28' "$RUNNER_TEMP/status.out"
+          grep -F 'RWF788_EXPECTED_FAIL' "$RUNNER_TEMP/status.out"
+          python "$RUNNER_TEMP/rwf-engine/repo_workflow.py" --root "$GITHUB_WORKSPACE" test RED issue-1-rwf788-red --remote --poll 0 > "$RUNNER_TEMP/reused.out" 2>&1
+          cat "$RUNNER_TEMP/reused.out"
+          grep -F 'RWF788_EXPECTED_FAIL' "$RUNNER_TEMP/reused.out"
+          test "$(git rev-parse HEAD)" = 2d150cbaf8dcfd20c6a7d785e49667eee806cd93
