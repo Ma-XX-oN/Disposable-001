@@ -1,0 +1,69 @@
+name: RWF 660 CMD Full Identity Live Origin Test
+on:
+  push:
+    branches:
+      - verify-660-cmd-full-branch-live-20261104
+    paths:
+      - .github/workflows/issue-660-cmd-full-identity-live.yml
+permissions:
+  contents: read
+jobs:
+  unfiltered-origin:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Pin corrected engine and fetch complete unfiltered CMD refs
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch --no-tags origin '+refs/heads/*:refs/remotes/origin/*'
+          git clone --quiet https://github.com/Ma-XX-oN/RepoWorkflow.git "$RUNNER_TEMP/engine"
+          git -C "$RUNNER_TEMP/engine" checkout --quiet --detach 89d5ea2b1a7bbc29af25383c5b41c45f16ed014f
+          test "$(git -C "$RUNNER_TEMP/engine" rev-parse HEAD)" = 89d5ea2b1a7bbc29af25383c5b41c45f16ed014f
+          python -m pip install --disable-pip-version-check -r "$RUNNER_TEMP/engine/requirements.txt"
+      - name: Two genuine CMD-1 branches resolve separately by full source identity
+        shell: bash
+        run: |
+          set -euo pipefail
+          git switch -C issue-1-rwf791-pr803-final-20261104 refs/remotes/origin/issue-1-rwf791-pr803-final-20261104
+          PYTHONPATH="$RUNNER_TEMP/engine" python - <<'PY'
+          from pathlib import Path
+          from repo_workflow.remote_status import resolve_command
+          result = resolve_command(Path.cwd(), 1)
+          assert result.branch == "CMD-1-issue-1-rwf791-pr803-final-20261104", result
+          print("VERIFIED full branch:", result.branch)
+          PY
+          git switch -C issue-788-hosted-forwarding-acceptance-20261102 refs/remotes/origin/issue-788-hosted-forwarding-acceptance-20261102
+          PYTHONPATH="$RUNNER_TEMP/engine" python - <<'PY'
+          from pathlib import Path
+          from repo_workflow.remote_status import resolve_command
+          result = resolve_command(Path.cwd(), 1)
+          assert result.branch == "CMD-1-issue-788-hosted-forwarding-acceptance-20261102", result
+          print("VERIFIED full branch:", result.branch)
+          PY
+      - name: Read real CMD58-61 results directly from unfiltered GitHub origin
+        shell: bash
+        run: |
+          set -euo pipefail
+          git switch issue-1-rwf791-pr803-final-20261104
+          for spec in '58:0:COMPLETED exit=0' '59:2:COMPLETED exit=2' '60:2:CMD retry marker is malformed'; do
+            IFS=: read -r number code expected <<< "$spec"
+            set +e
+            output="$(python "$RUNNER_TEMP/engine/repo_workflow.py" --root "$PWD" remote-status "$number" --poll 0 2>&1)"
+            result=$?
+            set -e
+            echo "CMD$number rc=$result $output"
+            test "$result" -eq "$code"
+            grep -Fq "$expected" <<< "$output"
+          done
+          git switch -C issue-1-rwf791-pr803-public-20261104 refs/remotes/origin/issue-1-rwf791-pr803-public-20261104
+          result="$(python "$RUNNER_TEMP/engine/repo_workflow.py" --root "$PWD" remote-status 61 --poll 0)"
+          echo "CMD61 $result"
+          grep -Fq 'COMPLETED exit=0' <<< "$result"
+          echo 'VERIFIED: unfiltered original remote readback for CMD58-61'
