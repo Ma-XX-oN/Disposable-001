@@ -1,0 +1,61 @@
+name: RWF 791 final PR unique CMD58-61 readback verification
+on:
+  push:
+    branches: [issue-1-rwf791-pr803-readback-verified-20261104]
+    paths: [.ci/issue791-pr803-readback-verified-trigger]
+permissions:
+  contents: read
+jobs:
+  readback:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: issue-1-rwf791-pr803-final-20261104
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Install exact final RWF PR source
+        shell: bash
+        run: |
+          set -euo pipefail
+          git clone --quiet https://github.com/Ma-XX-oN/RepoWorkflow.git "$RUNNER_TEMP/rwf-engine"
+          git -C "$RUNNER_TEMP/rwf-engine" checkout --quiet --detach 5c83b7f8ef7def80932d02161a67452d1ca44881
+          test "$(git -C "$RUNNER_TEMP/rwf-engine" rev-parse HEAD)" = "5c83b7f8ef7def80932d02161a67452d1ca44881"
+          python -m pip install -r "$RUNNER_TEMP/rwf-engine/requirements.txt"
+      - name: Verify success failure malformed and read-only behavior
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          before="$(git ls-remote --heads origin 'CMD-*')"
+          set +e
+          success="$(python "$RUNNER_TEMP/rwf-engine/repo_workflow.py" --root "$PWD" remote-status 58 --poll 0 2>&1)"
+          rc_success=$?
+          failed="$(python "$RUNNER_TEMP/rwf-engine/repo_workflow.py" --root "$PWD" remote-status 59 --poll 0 2>&1)"
+          rc_failed=$?
+          malformed="$(python "$RUNNER_TEMP/rwf-engine/repo_workflow.py" --root "$PWD" remote-status 60 --poll 0 2>&1)"
+          rc_malformed=$?
+          submitted="$(python "$RUNNER_TEMP/rwf-engine/repo_workflow.py" --root "$PWD" remote-status 61 --poll 0 2>&1)"
+          rc_submitted=$?
+          set -e
+          printf 'PR803 exact engine 5c83b7f8ef7def80932d02161a67452d1ca44881\nCMD1 RC=%s\n%s\nCMD2 RC=%s\n%s\nCMD3 RC=%s\n%s\n' "$rc_success" "$success" "$rc_failed" "$failed" "$rc_malformed" "$malformed"
+          test "$rc_success" -eq 0
+          test "$rc_failed" -eq 2
+          test "$rc_malformed" -eq 2
+          grep -Fq 'CMD-58' <<<"$success"
+          grep -Fq 'COMPLETED exit=0' <<<"$success"
+          grep -Fq 'CMD-59' <<<"$failed"
+          grep -Fq 'COMPLETED exit=2' <<<"$failed"
+          grep -Fq 'CMD retry marker is malformed' <<<"$malformed"
+          test "$rc_submitted" -eq 0
+          grep -Fq 'CMD-61' <<<"$submitted"
+          grep -Fq 'COMPLETED exit=0' <<<"$submitted"
+          printf 'CMD61 PUBLIC-ORIGIN RC=%s\n%s\n' "$rc_submitted" "$submitted"
+          after="$(git ls-remote --heads origin 'CMD-*')"
+          test "$before" = "$after"
