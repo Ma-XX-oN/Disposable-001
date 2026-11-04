@@ -25,8 +25,8 @@ jobs:
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git clone --quiet https://github.com/Ma-XX-oN/RepoWorkflow.git "$RUNNER_TEMP/rwf"
-          git -C "$RUNNER_TEMP/rwf" checkout --quiet --detach 8b5617df9026789e2dfa6b177b8dac8c21a1be8e
-          test "$(git -C "$RUNNER_TEMP/rwf" rev-parse HEAD)" = 8b5617df9026789e2dfa6b177b8dac8c21a1be8e
+          git -C "$RUNNER_TEMP/rwf" checkout --quiet --detach 086cb4a0cc4740246fc0019f51187c92522c8fd9
+          test "$(git -C "$RUNNER_TEMP/rwf" rev-parse HEAD)" = 086cb4a0cc4740246fc0019f51187c92522c8fd9
           before=$(git rev-parse HEAD)
           set +e
           python "$RUNNER_TEMP/rwf/repo_workflow.py" --root "$PWD" test RED issue-1-lifecycle --remote >"$RUNNER_TEMP/out.txt" 2>"$RUNNER_TEMP/err.txt"
@@ -36,7 +36,7 @@ jobs:
           echo "public-cli exit=$code, sourceChanged=$([ "$before" = "$after" ] && echo false || echo true)"
           cat "$RUNNER_TEMP/out.txt" "$RUNNER_TEMP/err.txt"
           test "$code" -eq 2
-          test "$before" != "$after"
-          test "$(git show --format= --name-only HEAD)" = ".ci/red-green.txt"
-          test "$(git show HEAD:.ci/red-green.txt)" = "issue-1-lifecycle"
-          echo 'REPRODUCED: failed remote request mutated the source branch before CMD submission'
+          test "$before" = "$after"
+          test "$(git show HEAD:.ci/red-green.txt)" = "issue-1-rwf788-red"
+          grep -q 'expected-failure-declaration-missing' "$RUNNER_TEMP/err.txt"
+          echo 'PASS: rejected remote RED request preserved the source branch and selection'
