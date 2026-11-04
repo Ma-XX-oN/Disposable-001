@@ -1,0 +1,52 @@
+name: RWF 791 Public CLI Submission Acceptance
+on:
+  push:
+    branches: [issue-1-rwf791-readback-*]
+    paths: [.ci/cli-submit-trigger]
+permissions:
+  contents: write
+  actions: read
+jobs:
+  submit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: d7e296249e84b8ffdbb13c76e7e315df070b5fc7
+          fetch-depth: 0
+          persist-credentials: true
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Assert source branch identity and configure Git
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "d7e296249e84b8ffdbb13c76e7e315df070b5fc7"
+          git switch -c issue-1-rwf791-cli-submission-20261104
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git fetch --no-tags origin '+refs/heads/*:refs/remotes/origin/*'
+      - name: Install pinned engine
+        shell: bash
+        env:
+          RWF_ENGINE_ROOT: ${{ runner.temp }}/rwf-engine
+        run: |
+          set -euo pipefail
+          git clone --quiet https://github.com/Ma-XX-oN/RepoWorkflow.git "$RWF_ENGINE_ROOT"
+          git -C "$RWF_ENGINE_ROOT" checkout --quiet --detach cd1e02acabca0b8e93844a8693110ed91d8077ea
+          test "$(git -C "$RWF_ENGINE_ROOT" rev-parse HEAD)" = "cd1e02acabca0b8e93844a8693110ed91d8077ea"
+          python -m pip install -r "$RWF_ENGINE_ROOT/requirements.txt"
+      - name: Submit real CMD through public CLI
+        shell: bash
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RWF_ENGINE_ROOT: ${{ runner.temp }}/rwf-engine
+        run: |
+          set -euo pipefail
+          before=$(git rev-parse HEAD)
+          python "$RWF_ENGINE_ROOT/repo_workflow.py" --root "$PWD" test RED issue-1-rwf788-red --remote | tee submission.log
+          grep -Eq '^CMD-[0-9]+ .+ SUBMITTED$' submission.log
+          test "$(git rev-parse HEAD)" = "$before"
+          git fetch --no-tags origin '+refs/heads/CMD-*:refs/remotes/origin/CMD-*'
+          echo 'Public CLI request submitted; source SHA unchanged'
