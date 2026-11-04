@@ -41,6 +41,8 @@ jobs:
           rc_failed=$?
           malformed="$(python "$RUNNER_TEMP/rwf-engine/repo_workflow.py" --root "$PWD" remote-status 60 --poll 0 2>&1)"
           rc_malformed=$?
+          submitted="$(python "$RUNNER_TEMP/rwf-engine/repo_workflow.py" --root "$PWD" remote-status 61 --poll 0 2>&1)"
+          rc_submitted=$?
           set -e
           printf 'PR803 exact engine 5c83b7f8ef7def80932d02161a67452d1ca44881\nCMD1 RC=%s\n%s\nCMD2 RC=%s\n%s\nCMD3 RC=%s\n%s\n' "$rc_success" "$success" "$rc_failed" "$failed" "$rc_malformed" "$malformed"
           test "$rc_success" -eq 0
@@ -51,5 +53,9 @@ jobs:
           grep -Fq 'CMD-59' <<<"$failed"
           grep -Fq 'COMPLETED exit=2' <<<"$failed"
           grep -Fq 'CMD retry marker is malformed' <<<"$malformed"
+          test "$rc_submitted" -eq 0
+          grep -Fq 'CMD-61' <<<"$submitted"
+          grep -Fq 'COMPLETED exit=0' <<<"$submitted"
+          printf 'CMD61 PUBLIC-ORIGIN RC=%s\n%s\n' "$rc_submitted" "$submitted"
           after="$(git ls-remote --heads origin 'CMD-*')"
           test "$before" = "$after"
