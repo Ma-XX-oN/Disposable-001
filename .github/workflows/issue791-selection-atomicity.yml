@@ -1,0 +1,42 @@
+name: RWF 791 Source Mutation Diagnostic
+on:
+  push:
+    branches: [issue-1-rwf791-readback-*]
+    paths: [.ci/selection-mutation-trigger]
+permissions:
+  contents: read
+jobs:
+  diagnose:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ee43b854fc965e1f465d9d659e18202605b3dba8
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Run exact public command to reproduce atomicity failure
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "ee43b854fc965e1f465d9d659e18202605b3dba8"
+          git switch -c issue-1-rwf791-selection-atomicity-20261104
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git clone --quiet https://github.com/Ma-XX-oN/RepoWorkflow.git "$RUNNER_TEMP/rwf"
+          git -C "$RUNNER_TEMP/rwf" checkout --quiet --detach 8b5617df9026789e2dfa6b177b8dac8c21a1be8e
+          test "$(git -C "$RUNNER_TEMP/rwf" rev-parse HEAD)" = 8b5617df9026789e2dfa6b177b8dac8c21a1be8e
+          before=$(git rev-parse HEAD)
+          set +e
+          python "$RUNNER_TEMP/rwf/repo_workflow.py" --root "$PWD" test RED issue-1-lifecycle --remote >out.txt 2>err.txt
+          code=$?
+          set -e
+          after=$(git rev-parse HEAD)
+          echo "public-cli exit=$code, sourceChanged=$([ "$before" = "$after" ] && echo false || echo true)"
+          cat out.txt err.txt
+          test "$code" -eq 2
+          test "$before" != "$after"
+          test "$(git show --format= --name-only HEAD)" = ".ci/red-green.txt"
+          test "$(git show HEAD:.ci/red-green.txt)" = "issue-1-lifecycle"
+          echo 'REPRODUCED: failed remote request mutated the source branch before CMD submission'
