@@ -1,3 +1,1 @@
-RWF #791 public exact-source readback b2fbd827d44ea06b2c8090c601f82e5072204c0a
-Run 2: completed CLI --poll 0, both exit outcomes.
-Run 3: malformed CMD-14 readback fails closed.
+RWF #791 final candidate 1a58365cb072adc8f81d240fcf1053c1c5f49001: CMD56 success, CMD52 failure, CMD53 malformed
