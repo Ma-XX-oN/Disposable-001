@@ -54,3 +54,17 @@ jobs:
           test "$rc34" -eq 2
           grep -q 'RWF788_EXPECTED_FAIL' out35.txt
           grep -q 'expected-failure-declaration-missing' out34.txt
+          set +e
+          python "$RWF_ENGINE_ROOT/repo_workflow.py" --root "$PWD" remote-status 35 --poll 0.01 >poll35.txt 2>poll35err.txt
+          poll35=$?
+          python "$RWF_ENGINE_ROOT/repo_workflow.py" --root "$PWD" remote-status 34 --poll 0.01 >poll34.txt 2>poll34err.txt
+          poll34=$?
+          set -e
+          printf 'POLL CMD35 exit=%s\n' "$poll35"
+          cat poll35.txt poll35err.txt
+          printf 'POLL CMD34 exit=%s\n' "$poll34"
+          cat poll34.txt poll34err.txt
+          test "$poll35" -eq 0
+          test "$poll34" -eq 2
+          grep -q 'CMD-35 .* COMPLETED exit=0' poll35.txt
+          grep -q 'CMD-34 .* COMPLETED exit=2' poll34.txt
