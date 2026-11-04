@@ -11,7 +11,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: e02103d07d8cf1ba24d5d0fab3e3fd3e00e21fa8
+          ref: 3f265b334134c5d563a5dc33c5fa23a8b83e86b3
           fetch-depth: 0
       - uses: actions/setup-python@v5
         with:
@@ -20,7 +20,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          test "$(git rev-parse HEAD)" = "e02103d07d8cf1ba24d5d0fab3e3fd3e00e21fa8"
+          test "$(git rev-parse HEAD)" = "3f265b334134c5d563a5dc33c5fa23a8b83e86b3"
           git switch -c issue-1-rwf791-final-provider-20261104
           git fetch --no-tags origin '+refs/heads/*:refs/remotes/origin/*'
       - name: Install pinned engine
@@ -30,8 +30,8 @@ jobs:
         run: |
           set -euo pipefail
           git clone --quiet https://github.com/Ma-XX-oN/RepoWorkflow.git "$RWF_ENGINE_ROOT"
-          git -C "$RWF_ENGINE_ROOT" checkout --quiet --detach 8efac3e354270fffdcd648088ec35a1fe9b9c511
-          test "$(git -C "$RWF_ENGINE_ROOT" rev-parse HEAD)" = "8efac3e354270fffdcd648088ec35a1fe9b9c511"
+          git -C "$RWF_ENGINE_ROOT" checkout --quiet --detach f9850887e848868ea658e96a2f6b1800ebabe1ca
+          test "$(git -C "$RWF_ENGINE_ROOT" rev-parse HEAD)" = "f9850887e848868ea658e96a2f6b1800ebabe1ca"
           python -m pip install -r "$RWF_ENGINE_ROOT/requirements.txt"
       - name: Read durable success and failure using public RWF CLI
         shell: bash
@@ -121,3 +121,16 @@ jobs:
           grep -q 'CMD-46 .* COMPLETED exit=2' poll46.txt
           grep -q 'RWF788_EXPECTED_FAIL' poll45.txt
           grep -q 'expected-failure-declaration-missing' poll46.txt
+          set +e
+          python "$RWF_ENGINE_ROOT/repo_workflow.py" --root "$PWD" remote-status 49 --poll 0.01 >poll49.txt 2>err49.txt
+          code49=$?
+          python "$RWF_ENGINE_ROOT/repo_workflow.py" --root "$PWD" remote-status 50 --poll 0.01 >poll50.txt 2>err50.txt
+          code50=$?
+          set -e
+          printf 'EXACT 3.15 CMD49=%s CMD50=%s\n' "$code49" "$code50"
+          test "$code49" -eq 0
+          test "$code50" -eq 2
+          grep -q 'CMD-49 .* COMPLETED exit=0' poll49.txt
+          grep -q 'CMD-50 .* COMPLETED exit=2' poll50.txt
+          grep -q 'RWF788_EXPECTED_FAIL' poll49.txt
+          grep -q 'expected-failure-declaration-missing' poll50.txt
