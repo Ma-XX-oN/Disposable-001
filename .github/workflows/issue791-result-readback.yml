@@ -37,16 +37,16 @@ jobs:
           set +e
           ok="$(python "$RUNNER_TEMP/rwf-engine/repo_workflow.py" --root "$PWD" remote-status 56 --poll 0 2>&1)"
           ok_rc=$?
-          fail="$(python "$RUNNER_TEMP/rwf-engine/repo_workflow.py" --root "$PWD" remote-status 52 --poll 0 2>&1)"
+          fail="$(python "$RUNNER_TEMP/rwf-engine/repo_workflow.py" --root "$PWD" remote-status 57 --poll 0 2>&1)"
           fail_rc=$?
           set -e
           printf 'CMD56 RC=%s\n%s\n' "$ok_rc" "$ok"
-          printf 'CMD52 RC=%s\n%s\n' "$fail_rc" "$fail"
+          printf 'CMD57 RC=%s\n%s\n' "$fail_rc" "$fail"
           test "$ok_rc" -eq 0
           test "$fail_rc" -eq 2
           grep -Fq 'CMD-56' <<<"$ok"
           grep -Fq 'COMPLETED exit=0' <<<"$ok"
-          grep -Fq 'CMD-52' <<<"$fail"
+          grep -Fq 'CMD-57' <<<"$fail"
           grep -Fq 'COMPLETED exit=2' <<<"$fail"
           set +e
           malformed="$(python "$RUNNER_TEMP/rwf-engine/repo_workflow.py" --root "$PWD" remote-status 53 2>&1)"
