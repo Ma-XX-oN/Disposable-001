@@ -30,8 +30,8 @@ jobs:
         run: |
           set -euo pipefail
           git clone --quiet https://github.com/Ma-XX-oN/RepoWorkflow.git "$RWF_ENGINE_ROOT"
-          git -C "$RWF_ENGINE_ROOT" checkout --quiet --detach 33e7b818d91ac7bf90e96afbc4d26822d1237565
-          test "$(git -C "$RWF_ENGINE_ROOT" rev-parse HEAD)" = "33e7b818d91ac7bf90e96afbc4d26822d1237565"
+          git -C "$RWF_ENGINE_ROOT" checkout --quiet --detach 8b5617df9026789e2dfa6b177b8dac8c21a1be8e
+          test "$(git -C "$RWF_ENGINE_ROOT" rev-parse HEAD)" = "8b5617df9026789e2dfa6b177b8dac8c21a1be8e"
           python -m pip install -r "$RWF_ENGINE_ROOT/requirements.txt"
       - name: Read durable success and failure using public RWF CLI
         shell: bash
@@ -95,3 +95,16 @@ jobs:
           grep -q 'CMD-40 .* COMPLETED exit=2' poll40.txt
           grep -q 'RWF788_EXPECTED_FAIL' out39.txt
           grep -q 'expected-failure-declaration-missing' out40.txt
+          set +e
+          python "$RWF_ENGINE_ROOT/repo_workflow.py" --root "$PWD" remote-status 41 --poll 0.01 >poll41.txt 2>err41.txt
+          poll41=$?
+          python "$RWF_ENGINE_ROOT/repo_workflow.py" --root "$PWD" remote-status 42 --poll 0.01 >poll42.txt 2>err42.txt
+          poll42=$?
+          set -e
+          printf 'CURRENT CMD41=%s CMD42=%s\n' "$poll41" "$poll42"
+          test "$poll41" -eq 0
+          test "$poll42" -eq 2
+          grep -q 'CMD-41 .* COMPLETED exit=0' poll41.txt
+          grep -q 'CMD-42 .* COMPLETED exit=2' poll42.txt
+          grep -q 'RWF788_EXPECTED_FAIL' poll41.txt
+          grep -q 'expected-failure-declaration-missing' poll42.txt
