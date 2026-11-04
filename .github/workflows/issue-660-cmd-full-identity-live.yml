@@ -24,8 +24,8 @@ jobs:
           set -euo pipefail
           git fetch --no-tags origin '+refs/heads/*:refs/remotes/origin/*'
           git clone --quiet https://github.com/Ma-XX-oN/RepoWorkflow.git "$RUNNER_TEMP/engine"
-          git -C "$RUNNER_TEMP/engine" checkout --quiet --detach 89d5ea2b1a7bbc29af25383c5b41c45f16ed014f
-          test "$(git -C "$RUNNER_TEMP/engine" rev-parse HEAD)" = 89d5ea2b1a7bbc29af25383c5b41c45f16ed014f
+          git -C "$RUNNER_TEMP/engine" checkout --quiet --detach 42008c5733e38eb699edd728e76521c6b6a2eed1
+          test "$(git -C "$RUNNER_TEMP/engine" rev-parse HEAD)" = 42008c5733e38eb699edd728e76521c6b6a2eed1
           python -m pip install --disable-pip-version-check -r "$RUNNER_TEMP/engine/requirements.txt"
       - name: Two genuine CMD-1 branches resolve separately by full source identity
         shell: bash
