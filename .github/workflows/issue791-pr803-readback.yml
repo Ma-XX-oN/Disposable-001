@@ -35,20 +35,20 @@ jobs:
           set -euo pipefail
           before="$(git ls-remote --heads origin 'CMD-*')"
           set +e
-          success="$(python "$RUNNER_TEMP/rwf-engine/repo_workflow.py" --root "$PWD" remote-status 1 --poll 0 2>&1)"
+          success="$(python "$RUNNER_TEMP/rwf-engine/repo_workflow.py" --root "$PWD" remote-status 58 --poll 0 2>&1)"
           rc_success=$?
-          failed="$(python "$RUNNER_TEMP/rwf-engine/repo_workflow.py" --root "$PWD" remote-status 2 --poll 0 2>&1)"
+          failed="$(python "$RUNNER_TEMP/rwf-engine/repo_workflow.py" --root "$PWD" remote-status 59 --poll 0 2>&1)"
           rc_failed=$?
-          malformed="$(python "$RUNNER_TEMP/rwf-engine/repo_workflow.py" --root "$PWD" remote-status 3 --poll 0 2>&1)"
+          malformed="$(python "$RUNNER_TEMP/rwf-engine/repo_workflow.py" --root "$PWD" remote-status 60 --poll 0 2>&1)"
           rc_malformed=$?
           set -e
           printf 'PR803 exact engine 5c83b7f8ef7def80932d02161a67452d1ca44881\nCMD1 RC=%s\n%s\nCMD2 RC=%s\n%s\nCMD3 RC=%s\n%s\n' "$rc_success" "$success" "$rc_failed" "$failed" "$rc_malformed" "$malformed"
           test "$rc_success" -eq 0
           test "$rc_failed" -eq 2
           test "$rc_malformed" -eq 2
-          grep -Fq 'CMD-1' <<<"$success"
+          grep -Fq 'CMD-58' <<<"$success"
           grep -Fq 'COMPLETED exit=0' <<<"$success"
-          grep -Fq 'CMD-2' <<<"$failed"
+          grep -Fq 'CMD-59' <<<"$failed"
           grep -Fq 'COMPLETED exit=2' <<<"$failed"
           grep -Fq 'CMD retry marker is malformed' <<<"$malformed"
           after="$(git ls-remote --heads origin 'CMD-*')"
