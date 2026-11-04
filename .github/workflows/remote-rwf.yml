@@ -39,8 +39,8 @@ jobs:
         run: |
           set -euo pipefail
           git clone --quiet https://github.com/Ma-XX-oN/RepoWorkflow.git "$RWF_ENGINE_ROOT"
-          git -C "$RWF_ENGINE_ROOT" checkout --quiet --detach ec4eec989dafcf3e9ef2c139d0775b0ae100c4de
-          test "$(git -C "$RWF_ENGINE_ROOT" rev-parse HEAD)" = ec4eec989dafcf3e9ef2c139d0775b0ae100c4de
+          git -C "$RWF_ENGINE_ROOT" checkout --quiet --detach cd1e02acabca0b8e93844a8693110ed91d8077ea
+          test "$(git -C "$RWF_ENGINE_ROOT" rev-parse HEAD)" = cd1e02acabca0b8e93844a8693110ed91d8077ea
           python -m pip install -r "$RWF_ENGINE_ROOT/requirements.txt"
       - name: Forward authenticated CMD argv through normal CLI
         shell: bash
