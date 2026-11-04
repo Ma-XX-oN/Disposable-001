@@ -2,7 +2,7 @@ name: RWF 791 Disposable combined-host acceptance
 on:
   push:
     branches:
-      - 'issue-1-rwf791-lifecycle-20261103'
+      - 'issue-1-rwf791-final-cert-20261104'
     paths:
       - '.ci/issue791-trigger'
 permissions:
@@ -24,12 +24,12 @@ jobs:
         shell: bash
         run: |
           git clone --quiet https://github.com/Ma-XX-oN/RepoWorkflow.git "$RUNNER_TEMP/rwf-engine"
-          git -C "$RUNNER_TEMP/rwf-engine" checkout --quiet --detach 08e47a0c7284095246d20dcaa4e0d2e8ab715954
+          git -C "$RUNNER_TEMP/rwf-engine" checkout --quiet --detach 1a58365cb072adc8f81d240fcf1053c1c5f49001
       - name: Assert exact source
         shell: bash
         run: |
           set -euo pipefail
-          test "$(git -C "$RUNNER_TEMP/rwf-engine" rev-parse HEAD)" = 08e47a0c7284095246d20dcaa4e0d2e8ab715954
+          test "$(git -C "$RUNNER_TEMP/rwf-engine" rev-parse HEAD)" = 1a58365cb072adc8f81d240fcf1053c1c5f49001
           python -m pip install -r $RUNNER_TEMP/rwf-engine/requirements.txt
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
