@@ -54,6 +54,6 @@ jobs:
           set -e
           printf 'CMD53 malformed rc=%s\n%s\n' "$malformed_rc" "$malformed"
           test "$malformed_rc" -eq 2
-          grep -Fq 'CMD request argv is malformed' <<<"$malformed"
+          grep -Fq 'CMD retry marker is malformed' <<<"$malformed"
           after="$(git ls-remote --heads origin 'CMD-*')"
           test "$before" = "$after"
