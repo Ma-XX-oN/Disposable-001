@@ -68,3 +68,11 @@ jobs:
           test "$poll34" -eq 2
           grep -q 'CMD-35 .* COMPLETED exit=0' poll35.txt
           grep -q 'CMD-34 .* COMPLETED exit=2' poll34.txt
+          set +e
+          python "$RWF_ENGINE_ROOT/repo_workflow.py" --root "$PWD" remote-status 36 >pending36.txt 2>pending36err.txt
+          rc36=$?
+          set -e
+          printf 'CMD36 pending code %s\n' "$rc36"
+          cat pending36.txt pending36err.txt
+          test "$rc36" -eq 75
+          grep -q 'CMD-36 .* PENDING' pending36.txt
