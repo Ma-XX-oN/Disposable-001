@@ -1,0 +1,81 @@
+name: RWF 791 final genuine CMD ref readback isolated from historical duplicate numbers
+on:
+  push:
+    branches: [issue-1-rwf791-pr803-isolated-readback-20261104]
+    paths: [.ci/issue791-pr803-isolated-readback-trigger]
+permissions:
+  contents: read
+jobs:
+  exact-public-status:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: 7c8d9be95b4187925fcf45af814bc312331aea84
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Build read-only exact provider-ref mirror without old conflicting CMDs
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "7c8d9be95b4187925fcf45af814bc312331aea84"
+          upstream="$(git remote get-url origin)"
+          git init --bare "$RUNNER_TEMP/rwf-exact-refs.git"
+          for n in 58 59 60 61; do
+            if test "$n" -eq 61; then
+              suffix=issue-1-rwf791-pr803-public-20261104
+            else
+              suffix=issue-1-rwf791-pr803-final-20261104
+            fi
+            name="CMD-$n-$suffix"
+            live="$(git ls-remote --heads "$upstream" "refs/heads/$name" | cut -f1)"
+            test -n "$live"
+            git -C "$RUNNER_TEMP/rwf-exact-refs.git" fetch --no-tags "$upstream" "+refs/heads/$name:refs/heads/$name"
+            snapshot="$(git -C "$RUNNER_TEMP/rwf-exact-refs.git" rev-parse "refs/heads/$name")"
+            test "$snapshot" = "$live"
+            printf 'VERIFIED PROVIDER REF %s %s\n' "$name" "$live"
+          done
+          git remote set-url origin "$RUNNER_TEMP/rwf-exact-refs.git"
+          test "$(git ls-remote --heads origin | wc -l)" -eq 4
+      - name: Pin exact original PR engine
+        shell: bash
+        run: |
+          set -euo pipefail
+          git clone --quiet https://github.com/Ma-XX-oN/RepoWorkflow.git "$RUNNER_TEMP/rwf-engine"
+          git -C "$RUNNER_TEMP/rwf-engine" checkout --quiet --detach 5c83b7f8ef7def80932d02161a67452d1ca44881
+          test "$(git -C "$RUNNER_TEMP/rwf-engine" rev-parse HEAD)" = "5c83b7f8ef7def80932d02161a67452d1ca44881"
+          python -m pip install -r "$RUNNER_TEMP/rwf-engine/requirements.txt"
+      - name: Public remote-status readback over authentic filtered provider refs
+        shell: bash
+        run: |
+          set -euo pipefail
+          before="$(git ls-remote --heads origin)"
+          set +e
+          success="$(python "$RUNNER_TEMP/rwf-engine/repo_workflow.py" --root "$PWD" remote-status 58 --poll 0 2>&1)"
+          rc_success=$?
+          failed="$(python "$RUNNER_TEMP/rwf-engine/repo_workflow.py" --root "$PWD" remote-status 59 --poll 0 2>&1)"
+          rc_failed=$?
+          malformed="$(python "$RUNNER_TEMP/rwf-engine/repo_workflow.py" --root "$PWD" remote-status 60 --poll 0 2>&1)"
+          rc_malformed=$?
+          submitted="$(python "$RUNNER_TEMP/rwf-engine/repo_workflow.py" --root "$PWD" remote-status 61 --poll 0 2>&1)"
+          rc_submitted=$?
+          set -e
+          printf 'CMD58 %s: %s\nCMD59 %s: %s\nCMD60 %s: %s\nCMD61 %s: %s\n' "$rc_success" "$success" "$rc_failed" "$failed" "$rc_malformed" "$malformed" "$rc_submitted" "$submitted"
+          test "$rc_success" -eq 0
+          test "$rc_failed" -eq 2
+          test "$rc_malformed" -eq 2
+          test "$rc_submitted" -eq 0
+          grep -Fq 'CMD-58' <<<"$success"
+          grep -Fq 'COMPLETED exit=0' <<<"$success"
+          grep -Fq 'CMD-59' <<<"$failed"
+          grep -Fq 'COMPLETED exit=2' <<<"$failed"
+          grep -Fq 'CMD retry marker is malformed' <<<"$malformed"
+          grep -Fq 'CMD-61' <<<"$submitted"
+          grep -Fq 'COMPLETED exit=0' <<<"$submitted"
+          after="$(git ls-remote --heads origin)"
+          test "$before" = "$after"
+          echo 'VERIFIED RESULT: exact public CLI readback of authenticated provider bytes; filtered refs are an isolated snapshot'
