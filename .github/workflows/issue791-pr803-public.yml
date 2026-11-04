@@ -1,0 +1,46 @@
+name: RWF 791 final PR public CLI submission and reuse
+on:
+  push:
+    branches: [issue-1-rwf791-pr803-public-20261104]
+    paths: [.ci/issue791-pr803-public-trigger]
+permissions:
+  contents: write
+  actions: read
+jobs:
+  submit-reuse:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: 7c8d9be95b4187925fcf45af814bc312331aea84
+          fetch-depth: 0
+          persist-credentials: true
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Install and assert exact RWF PR engine
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "7c8d9be95b4187925fcf45af814bc312331aea84"
+          git switch -c issue-1-rwf791-pr803-public-20261104
+          git clone --quiet https://github.com/Ma-XX-oN/RepoWorkflow.git "$RUNNER_TEMP/rwf-engine"
+          git -C "$RUNNER_TEMP/rwf-engine" checkout --quiet --detach 5c83b7f8ef7def80932d02161a67452d1ca44881
+          test "$(git -C "$RUNNER_TEMP/rwf-engine" rev-parse HEAD)" = "5c83b7f8ef7def80932d02161a67452d1ca44881"
+          python -m pip install -r "$RUNNER_TEMP/rwf-engine/requirements.txt"
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+      - name: Public CLI submit and repeat same request without changing source
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          original="$(git rev-parse HEAD)"
+          python "$RUNNER_TEMP/rwf-engine/repo_workflow.py" --root "$PWD" test RED issue-1-rwf788-red --remote
+          test "$(git rev-parse HEAD)" = "$original"
+          python "$RUNNER_TEMP/rwf-engine/repo_workflow.py" --root "$PWD" test RED issue-1-rwf788-red --remote
+          test "$(git rev-parse HEAD)" = "$original"
+          git ls-remote --heads origin 'CMD-*-issue-1-rwf791-pr803-public-20261104'
