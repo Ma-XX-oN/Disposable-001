@@ -47,4 +47,11 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           RWF_ENGINE_ROOT: ${{ runner.temp }}/rwf-engine
-        run: python "$RWF_ENGINE_ROOT/scripts/hosted-rwf-forward.py"
+        run: |
+          set -euo pipefail
+          # Propagate provider authentication into the wrapper's isolated
+          # source clone without changing tracked files or storing a token.
+          export GIT_CONFIG_COUNT=1
+          export GIT_CONFIG_KEY_0=credential.helper
+          export GIT_CONFIG_VALUE_0='!f() { echo username=x-access-token; echo "password=$GITHUB_TOKEN"; }; f'
+          python "$RWF_ENGINE_ROOT/scripts/hosted-rwf-forward.py"
