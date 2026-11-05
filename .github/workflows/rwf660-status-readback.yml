@@ -1,0 +1,43 @@
+name: RWF 660 CMD Readback Verification
+on:
+  push:
+    branches: ['issue-1-rwf660-provider-20261105']
+    paths: ['.ci/rwf660-status-trigger']
+permissions:
+  contents: read
+jobs:
+  readback:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: true
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Verify exact engine and both completed outcomes
+        shell: bash
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          git clone --quiet https://github.com/Ma-XX-oN/RepoWorkflow.git "$RUNNER_TEMP/rwf660-engine"
+          git -C "$RUNNER_TEMP/rwf660-engine" checkout --quiet --detach 4b9782e3280e50b406d0b78afce344f242aa38fd
+          test "$(git -C "$RUNNER_TEMP/rwf660-engine" rev-parse HEAD)" = 4b9782e3280e50b406d0b78afce344f242aa38fd
+          python -m pip install -r "$RUNNER_TEMP/rwf660-engine/requirements.txt"
+          set +e
+          python "$RUNNER_TEMP/rwf660-engine/repo_workflow.py" --root . remote-status 65 > "$RUNNER_TEMP/cmd65.out" 2>&1
+          result65="$?"
+          python "$RUNNER_TEMP/rwf660-engine/repo_workflow.py" --root . remote-status 66 > "$RUNNER_TEMP/cmd66.out" 2>&1
+          result66="$?"
+          set -e
+          cat "$RUNNER_TEMP/cmd65.out"
+          cat "$RUNNER_TEMP/cmd66.out"
+          test "$result65" -eq 2
+          test "$result66" -eq 0
+          grep -Fq 'CMD-65 CMD-65-issue-1-rwf660-provider-20261105 COMPLETED exit=2' "$RUNNER_TEMP/cmd65.out"
+          grep -Fq 'CMD-66 CMD-66-issue-1-rwf660-provider-20261105 COMPLETED exit=0' "$RUNNER_TEMP/cmd66.out"
+          grep -Fq 'rwf init execution is not implemented yet' "$RUNNER_TEMP/cmd65.out"
+          grep -Fq 'RWF788_EXPECTED_FAIL' "$RUNNER_TEMP/cmd66.out"
