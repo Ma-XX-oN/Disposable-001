@@ -1,0 +1,24 @@
+1
+F
+======================================================================
+FAIL: test_known_behavioral_gap (tests.test_issue_1_rwf788_red.DeclaredRed.test_known_behavioral_gap)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/tmp/rwf-cmd-z9kswv7y/source/tests/test_issue_1_rwf788_red.py", line 6, in test_known_behavioral_gap
+    self.assertEqual(1, 2, "RWF788_EXPECTED_FAIL")
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 1 != 2 : RWF788_EXPECTED_FAIL
+
+----------------------------------------------------------------------
+Ran 1 test in 0.001s
+
+FAILED (failures=1)
+Traceback (most recent call last):
+  File "/home/runner/work/_temp/rwf-engine/repo_workflow/remote_invocation.py", line 437, in invoke_numbered
+    _publish_command_branches(source, request, before_branches, before_tags)
+    ~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/runner/work/_temp/rwf-engine/repo_workflow/remote_invocation.py", line 336, in _publish_command_branches
+    raise RemoteInvocationError(
+      "command branch publication failed: " + published.stderr.strip()
+    )
+repo_workflow.remote_invocation.RemoteInvocationError: command branch publication failed: fatal: could not read Username for 'https://github.com': No such device or address
