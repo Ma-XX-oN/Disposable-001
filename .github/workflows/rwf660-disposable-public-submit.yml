@@ -1,0 +1,44 @@
+name: RWF 660 Disposable Public CMD Submission
+
+on:
+  push:
+    branches:
+      - 'issue-1-rwf660-provider-20261105'
+    paths:
+      - '.ci/rwf660-provider-trigger'
+
+permissions:
+  contents: write
+
+jobs:
+  submit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: true
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Retrieve and verify exact assembled RWF engine
+        shell: bash
+        run: |
+          set -euo pipefail
+          git clone --quiet https://github.com/Ma-XX-oN/RepoWorkflow.git "$RUNNER_TEMP/rwf660-engine"
+          git -C "$RUNNER_TEMP/rwf660-engine" checkout --quiet --detach 4b9782e3280e50b406d0b78afce344f242aa38fd
+          test "$(git -C "$RUNNER_TEMP/rwf660-engine" rev-parse HEAD)" = 4b9782e3280e50b406d0b78afce344f242aa38fd
+          python -m pip install -r "$RUNNER_TEMP/rwf660-engine/requirements.txt"
+      - name: Submit public success and nonzero CMD commands
+        shell: bash
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git fetch --no-tags origin '+refs/heads/*:refs/remotes/origin/*'
+          git rev-parse HEAD
+          python "$RUNNER_TEMP/rwf660-engine/repo_workflow.py" --root . test RED issue-1-rwf788-red --remote
+          python "$RUNNER_TEMP/rwf660-engine/repo_workflow.py" --root . init --remote
