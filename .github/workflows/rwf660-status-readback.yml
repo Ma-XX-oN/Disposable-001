@@ -24,20 +24,20 @@ jobs:
         run: |
           set -euo pipefail
           git clone --quiet https://github.com/Ma-XX-oN/RepoWorkflow.git "$RUNNER_TEMP/rwf660-engine"
-          git -C "$RUNNER_TEMP/rwf660-engine" checkout --quiet --detach 4b9782e3280e50b406d0b78afce344f242aa38fd
-          test "$(git -C "$RUNNER_TEMP/rwf660-engine" rev-parse HEAD)" = 4b9782e3280e50b406d0b78afce344f242aa38fd
+          git -C "$RUNNER_TEMP/rwf660-engine" checkout --quiet --detach ed873a47f6e53f8a9726023091a6ebed7dd49064
+          test "$(git -C "$RUNNER_TEMP/rwf660-engine" rev-parse HEAD)" = ed873a47f6e53f8a9726023091a6ebed7dd49064
           python -m pip install -r "$RUNNER_TEMP/rwf660-engine/requirements.txt"
           set +e
-          python "$RUNNER_TEMP/rwf660-engine/repo_workflow.py" --root . remote-status 65 > "$RUNNER_TEMP/cmd65.out" 2>&1
-          result65="$?"
-          python "$RUNNER_TEMP/rwf660-engine/repo_workflow.py" --root . remote-status 66 > "$RUNNER_TEMP/cmd66.out" 2>&1
-          result66="$?"
+          python "$RUNNER_TEMP/rwf660-engine/repo_workflow.py" --root . remote-status 68 > "$RUNNER_TEMP/cmd68.out" 2>&1
+          result68="$?"
+          python "$RUNNER_TEMP/rwf660-engine/repo_workflow.py" --root . remote-status 67 > "$RUNNER_TEMP/cmd67.out" 2>&1
+          result67="$?"
           set -e
-          cat "$RUNNER_TEMP/cmd65.out"
-          cat "$RUNNER_TEMP/cmd66.out"
-          test "$result65" -eq 2
-          test "$result66" -eq 0
-          grep -Fq 'CMD-65 CMD-65-issue-1-rwf660-provider-20261105 COMPLETED exit=2' "$RUNNER_TEMP/cmd65.out"
-          grep -Fq 'CMD-66 CMD-66-issue-1-rwf660-provider-20261105 COMPLETED exit=0' "$RUNNER_TEMP/cmd66.out"
-          grep -Fq 'rwf init execution is not implemented yet' "$RUNNER_TEMP/cmd65.out"
-          grep -Fq 'RWF788_EXPECTED_FAIL' "$RUNNER_TEMP/cmd66.out"
+          cat "$RUNNER_TEMP/cmd68.out"
+          cat "$RUNNER_TEMP/cmd67.out"
+          test "$result68" -eq 2
+          test "$result67" -eq 0
+          grep -Fq 'CMD-68 CMD-68-issue-1-rwf660-provider-20261105 COMPLETED exit=2' "$RUNNER_TEMP/cmd68.out"
+          grep -Fq 'CMD-67 CMD-67-issue-1-rwf660-provider-20261105 COMPLETED exit=0' "$RUNNER_TEMP/cmd67.out"
+          grep -Fq 'rwf init execution is not implemented yet' "$RUNNER_TEMP/cmd68.out"
+          grep -Fq 'RWF788_EXPECTED_FAIL' "$RUNNER_TEMP/cmd67.out"
