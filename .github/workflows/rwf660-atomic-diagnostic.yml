@@ -42,6 +42,8 @@ jobs:
           export RWF_WRITER_ID=rwf660-provider
           export RWF_SESSION_ID=rwf660-diagnostic
           python -m pip install -r "$RUNNER_TEMP/rwf660-engine/requirements.txt"
+          git config user.name "RWF Disposable Diagnostic"
+          git config user.email "rwf-disposable@example.invalid"
           python "$RUNNER_TEMP/rwf660-engine/repo_workflow.py" --root . issue start 1
           target=refs/heads/issue-1-rwf660-push-diagnostic-20261105
           if git ls-remote --heads origin "$target" | grep .; then
