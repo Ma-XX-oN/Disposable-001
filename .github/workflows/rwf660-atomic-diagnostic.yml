@@ -35,3 +35,23 @@ jobs:
           cat "$RUNNER_TEMP/push.out"
           echo "--- provider stderr ---"
           cat "$RUNNER_TEMP/push.err"
+          git clone --quiet https://github.com/Ma-XX-oN/RepoWorkflow.git "$RUNNER_TEMP/rwf660-engine"
+          git -C "$RUNNER_TEMP/rwf660-engine" checkout --quiet --detach 31eb1925175d254664a382019244ebfec2e5ea0c
+          test "$(git -C "$RUNNER_TEMP/rwf660-engine" rev-parse HEAD)" = 31eb1925175d254664a382019244ebfec2e5ea0c
+          echo "--- execute normal issue-start into local ephemeral Git clone ---"
+          export RWF_WRITER_ID=rwf660-provider
+          export RWF_SESSION_ID=rwf660-diagnostic
+          python -m pip install -r "$RUNNER_TEMP/rwf660-engine/requirements.txt"
+          python "$RUNNER_TEMP/rwf660-engine/repo_workflow.py" --root . issue start 1
+          target=refs/heads/issue-1-rwf660-push-diagnostic-20261105
+          if git ls-remote --heads origin "$target" | grep .; then
+            echo "Diagnostic target exists; refusing overwrite"
+            exit 2
+          fi
+          set +e
+          git push --porcelain --atomic "--force-with-lease=$target:" origin "HEAD:$target" > "$RUNNER_TEMP/actual.out" 2> "$RUNNER_TEMP/actual.err"
+          actual_code="$?"
+          set -e
+          echo "ACTUAL_PUSH_EXIT=$actual_code"
+          cat "$RUNNER_TEMP/actual.out"
+          cat "$RUNNER_TEMP/actual.err"
