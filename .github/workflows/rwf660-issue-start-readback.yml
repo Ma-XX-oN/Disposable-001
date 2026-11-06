@@ -1,0 +1,32 @@
+name: RWF 660 Live Issue Start CMD72 Readback
+on:
+  push:
+    branches: ['issue-9901-rwf660-issue-start-20261105']
+    paths: ['.ci/660-issue-start-readback-trigger']
+permissions:
+  contents: read
+jobs:
+  readback:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Check exact public remote-status on clean #660 candidate
+        shell: bash
+        run: |
+          set -euo pipefail
+          git clone --quiet https://github.com/Ma-XX-oN/RepoWorkflow.git "$RUNNER_TEMP/rwf-engine"
+          git -C "$RUNNER_TEMP/rwf-engine" checkout --quiet --detach 9f9d8cb53ef6ab3b30dc8cf5f19f1374995ac2bf
+          test "$(git -C "$RUNNER_TEMP/rwf-engine" rev-parse HEAD)" = 9f9d8cb53ef6ab3b30dc8cf5f19f1374995ac2bf
+          python -m pip install -r "$RUNNER_TEMP/rwf-engine/requirements.txt"
+          python "$RUNNER_TEMP/rwf-engine/repo_workflow.py" --root . remote-status 72 > "$RUNNER_TEMP/status.txt" 2>&1
+          cat "$RUNNER_TEMP/status.txt"
+          grep -Fq 'CMD-72 CMD-72-issue-9901-rwf660-issue-start-20261105 COMPLETED exit=0' "$RUNNER_TEMP/status.txt"
+          grep -Fq '"issue":"9901"' "$RUNNER_TEMP/status.txt"
+          grep -Fq '"version":"1.0.0-issue.9901.0.1"' "$RUNNER_TEMP/status.txt"
