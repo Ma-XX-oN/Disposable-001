@@ -1,0 +1,14 @@
+1
+{"issue":"1","version":"1.0.0-issue.1.0.1","branch":"issue-1","relationship_revision":13516748361355028694,"lifecycle_revision":0}
+Traceback (most recent call last):
+  File "/home/runner/work/_temp/rwf-engine/repo_workflow/remote_invocation.py", line 443, in invoke_numbered
+    _publish_command_branches(source, request, before_branches, before_tags)
+    ~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/runner/work/_temp/rwf-engine/repo_workflow/remote_invocation.py", line 342, in _publish_command_branches
+    raise RemoteInvocationError(
+      "command branch publication failed: " + detail
+    )
+repo_workflow.remote_invocation.RemoteInvocationError: command branch publication failed: To https://github.com/Ma-XX-oN/Disposable-001
+!	f203fd889d4ff203814ff8fb8a33ec8ec385944f:refs/heads/issue-1	[remote rejected] (directory file conflict)
+Done
+error: failed to push some refs to 'https://github.com/Ma-XX-oN/Disposable-001'
