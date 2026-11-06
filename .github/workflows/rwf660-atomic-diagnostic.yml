@@ -1,0 +1,37 @@
+name: RWF 660 Issue Start Atomic Push Dry-Run
+on:
+  push:
+    branches: ['issue-1-rwf660-issue-start-20261105']
+    paths: ['.ci/issue660-atomic-diagnostic-trigger']
+permissions:
+  contents: write
+jobs:
+  dry-run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Check GitHub branch creation via no-effect atomic dry-run
+        shell: bash
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          if git ls-remote --heads origin refs/heads/issue-1 | grep .; then
+            echo 'Target unexpectedly exists; stop'
+            exit 2
+          fi
+          export GIT_CONFIG_COUNT=1
+          export GIT_CONFIG_KEY_0=credential.helper
+          export GIT_CONFIG_VALUE_0='!f() { echo username=x-access-token; echo "password=$GITHUB_TOKEN"; }; f'
+          set +e
+          git push --dry-run --porcelain --atomic --force-with-lease=refs/heads/issue-1: origin HEAD:refs/heads/issue-1 > "$RUNNER_TEMP/push.out" 2> "$RUNNER_TEMP/push.err"
+          code="$?"
+          set -e
+          echo "DRY_RUN_EXIT=$code"
+          echo "--- provider stdout ---"
+          cat "$RUNNER_TEMP/push.out"
+          echo "--- provider stderr ---"
+          cat "$RUNNER_TEMP/push.err"
