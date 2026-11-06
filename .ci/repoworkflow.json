@@ -1,0 +1,31 @@
+{
+  "schema": 1,
+  "versionCommand": [
+    "python",
+    "scripts/issue660_version.py"
+  ],
+  "versionOutputs": [
+    "VERSION"
+  ],
+  "infoCommand": [
+    "python",
+    "scripts/issue660_info.py"
+  ],
+  "repository": {
+    "integrationBranch": "main",
+    "authoritativeRemote": "origin"
+  },
+  "environments": [
+    {
+      "id": "linux",
+      "required": true,
+      "platform": "linux",
+      "validationCommand": [
+        "python",
+        "-c",
+        "print('ok')"
+      ]
+    }
+  ],
+  "artifacts": []
+}
