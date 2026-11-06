@@ -1,0 +1,26 @@
+{
+  "key": "issues/1/lifecycle",
+  "previous_revision": null,
+  "revision": 0,
+  "schema_version": 1,
+  "session_id": "rwf660-diagnostic",
+  "value": {
+    "dependency_satisfied": false,
+    "high_risk_aliases": [],
+    "history": [
+      {
+        "candidate": "1.0.0-issue.1.0.1",
+        "from": "not_started",
+        "sequence": 0,
+        "to": "active",
+        "transition": "start"
+      }
+    ],
+    "issue": "1",
+    "legacy_event_count": 0,
+    "relationship_revision": 13516748361355028694,
+    "schema_version": 3,
+    "state": "active"
+  },
+  "writer_id": "rwf660-provider"
+}

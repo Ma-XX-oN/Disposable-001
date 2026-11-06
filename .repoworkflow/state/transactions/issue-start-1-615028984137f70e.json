@@ -1,0 +1,75 @@
+{
+  "key": "transactions/issue-start-1-615028984137f70e",
+  "previous_revision": 0,
+  "revision": 1,
+  "schema_version": 1,
+  "session_id": "rwf660-diagnostic",
+  "value": {
+    "read_set": [
+      {
+        "domain": "relationships",
+        "identity": null,
+        "key": "graph",
+        "revision": 13516748361355028694
+      },
+      {
+        "domain": "lifecycle",
+        "identity": "absent",
+        "key": "1",
+        "revision": 0
+      },
+      {
+        "domain": "current-work",
+        "identity": "absent",
+        "key": "context",
+        "revision": 0
+      },
+      {
+        "domain": "version",
+        "identity": "1.0.0",
+        "key": "canonical",
+        "revision": 0
+      },
+      {
+        "domain": "git",
+        "identity": "c2bc8f81316b909996d7e064cc585f7e9b905fdc",
+        "key": "parent",
+        "revision": 0
+      }
+    ],
+    "status": "committed",
+    "transaction_id": "issue-start-1-615028984137f70e",
+    "transaction_schema_version": 1,
+    "write_set": [
+      {
+        "domain": "version",
+        "key": "canonical",
+        "value": {
+          "issue": "1"
+        }
+      },
+      {
+        "domain": "git",
+        "key": "issue-1",
+        "value": {
+          "base": "issue-1-rwf660-issue-start-20261105"
+        }
+      },
+      {
+        "domain": "lifecycle",
+        "key": "1",
+        "value": {
+          "state": "active"
+        }
+      },
+      {
+        "domain": "current-work",
+        "key": "context",
+        "value": {
+          "issue": "1"
+        }
+      }
+    ]
+  },
+  "writer_id": "rwf660-provider"
+}
