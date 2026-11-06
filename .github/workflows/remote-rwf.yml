@@ -39,14 +39,16 @@ jobs:
         run: |
           set -euo pipefail
           git clone --quiet https://github.com/Ma-XX-oN/RepoWorkflow.git "$RWF_ENGINE_ROOT"
-          git -C "$RWF_ENGINE_ROOT" checkout --quiet --detach ed873a47f6e53f8a9726023091a6ebed7dd49064
-          test "$(git -C "$RWF_ENGINE_ROOT" rev-parse HEAD)" = ed873a47f6e53f8a9726023091a6ebed7dd49064
+          git -C "$RWF_ENGINE_ROOT" checkout --quiet --detach 31eb1925175d254664a382019244ebfec2e5ea0c
+          test "$(git -C "$RWF_ENGINE_ROOT" rev-parse HEAD)" = 31eb1925175d254664a382019244ebfec2e5ea0c
           python -m pip install -r "$RWF_ENGINE_ROOT/requirements.txt"
       - name: Forward authenticated CMD argv through normal CLI
         shell: bash
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           RWF_ENGINE_ROOT: ${{ runner.temp }}/rwf-engine
+          RWF_WRITER_ID: rwf660-provider
+          RWF_SESSION_ID: rwf660-issue-start
         run: |
           set -euo pipefail
           # Propagate provider authentication into the wrapper's isolated
