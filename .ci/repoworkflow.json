@@ -7,10 +7,6 @@
   "versionOutputs": [
     "VERSION"
   ],
-  "infoCommand": [
-    "python",
-    "scripts/issue660_info.py"
-  ],
   "repository": {
     "integrationBranch": "main",
     "authoritativeRemote": "origin"
