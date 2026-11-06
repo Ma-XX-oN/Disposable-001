@@ -14,22 +14,25 @@ jobs:
         with:
           fetch-depth: 0
           persist-credentials: true
+          token: ${{ secrets.RWF_CMD_PUSH_TOKEN }}
       - uses: actions/setup-python@v5
         with:
           python-version: '3.13'
       - name: Run public RWF remote commands through actual CMD forwarding and readback
         shell: bash
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.RWF_CMD_PUSH_TOKEN }}
           RWF_WRITER_ID: rwf660-provider
           RWF_SESSION_ID: rwf660-live-exact
         run: |
           set -euo pipefail
+          # No fallback to GITHUB_TOKEN: its pushes cannot trigger CMD workflow.
+          test -n "${GITHUB_TOKEN:-}" || { echo 'RWF_CMD_PUSH_TOKEN repository secret is required' >&2; exit 2; }
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git clone --quiet https://github.com/Ma-XX-oN/RepoWorkflow.git "$RUNNER_TEMP/rwf-engine"
-          git -C "$RUNNER_TEMP/rwf-engine" checkout --quiet --detach 60004a3c43f91477b07db5caaeeac0a9fd2cf8bd
-          test "$(git -C "$RUNNER_TEMP/rwf-engine" rev-parse HEAD)" = '60004a3c43f91477b07db5caaeeac0a9fd2cf8bd'
+          git -C "$RUNNER_TEMP/rwf-engine" checkout --quiet --detach a0e375f3c10bb00a7eb11e1ac381bad57ffd1bc3
+          test "$(git -C "$RUNNER_TEMP/rwf-engine" rev-parse HEAD)" = 'a0e375f3c10bb00a7eb11e1ac381bad57ffd1bc3'
           python -m pip install -r "$RUNNER_TEMP/rwf-engine/requirements.txt"
           echo 'BEGIN_VERIFIED_COMMAND_SUCCESS'
           python "$RUNNER_TEMP/rwf-engine/repo_workflow.py" --root . version --json --remote --poll 4
