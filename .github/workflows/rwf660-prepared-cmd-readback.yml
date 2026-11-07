@@ -1,0 +1,47 @@
+name: RWF 660 prepared candidate terminal CMD readback
+on:
+  push:
+    branches: ['issue-9903-rwf660-prepared-20261107']
+    paths: ['.github/workflows/rwf660-prepared-cmd-readback.yml']
+permissions:
+  contents: read
+jobs:
+  readback:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: true
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Verify existing completed CMD-79 and CMD-80 via public remote-status
+        shell: bash
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          git clone --quiet https://github.com/Ma-XX-oN/RepoWorkflow.git "$RUNNER_TEMP/rwf-engine"
+          git -C "$RUNNER_TEMP/rwf-engine" checkout --quiet --detach 8e2ea611b73127354da4866b92b232aedc27c4f2
+          test "$(git -C "$RUNNER_TEMP/rwf-engine" rev-parse HEAD)" = 8e2ea611b73127354da4866b92b232aedc27c4f2
+          python -m pip install -r "$RUNNER_TEMP/rwf-engine/requirements.txt"
+          before="$(git rev-parse HEAD)"
+          set +e
+          python "$RUNNER_TEMP/rwf-engine/repo_workflow.py" --root . remote-status 80 > "$RUNNER_TEMP/cmd80.out" 2>&1
+          result80=$?
+          python "$RUNNER_TEMP/rwf-engine/repo_workflow.py" --root . remote-status 79 > "$RUNNER_TEMP/cmd79.out" 2>&1
+          result79=$?
+          set -e
+          cat "$RUNNER_TEMP/cmd80.out"
+          cat "$RUNNER_TEMP/cmd79.out"
+          test "$result80" -eq 2
+          test "$result79" -eq 0
+          grep -Fqx 'CMD-80 CMD-80-issue-9903-rwf660-prepared-20261107 COMPLETED exit=2' "$RUNNER_TEMP/cmd80.out"
+          grep -Fqx 'RepoWorkflow error: rwf init execution is not implemented yet.' "$RUNNER_TEMP/cmd80.out"
+          grep -Fqx 'CMD-79 CMD-79-issue-9903-rwf660-prepared-20261107 COMPLETED exit=0' "$RUNNER_TEMP/cmd79.out"
+          grep -Fqx '{"version":"1.0.0"}' "$RUNNER_TEMP/cmd79.out"
+          test "$(git rev-parse HEAD)" = "$before"
+          test -z "$(git status --porcelain)"
+          echo 'EXACT_CMD_79_80_READBACK_PASS'
