@@ -31,8 +31,8 @@ jobs:
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git clone --quiet https://github.com/Ma-XX-oN/RepoWorkflow.git "$RUNNER_TEMP/rwf-engine"
-          git -C "$RUNNER_TEMP/rwf-engine" checkout --quiet --detach a0e375f3c10bb00a7eb11e1ac381bad57ffd1bc3
-          test "$(git -C "$RUNNER_TEMP/rwf-engine" rev-parse HEAD)" = 'a0e375f3c10bb00a7eb11e1ac381bad57ffd1bc3'
+          git -C "$RUNNER_TEMP/rwf-engine" checkout --quiet --detach bfc3ac6cac62d8b18f8ce9ccd1b96c18f38e0124
+          test "$(git -C "$RUNNER_TEMP/rwf-engine" rev-parse HEAD)" = 'bfc3ac6cac62d8b18f8ce9ccd1b96c18f38e0124'
           python -m pip install -r "$RUNNER_TEMP/rwf-engine/requirements.txt"
           echo 'BEGIN_VERIFIED_COMMAND_SUCCESS'
           python "$RUNNER_TEMP/rwf-engine/repo_workflow.py" --root . version --json --remote --poll 4
