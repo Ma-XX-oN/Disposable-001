@@ -1,14 +1,14 @@
-name: RWF 660 prepared candidate live CMD acceptance
+name: RWF 660 final result inspection race CMD acceptance
 on:
   push:
-    branches: ['issue-9903-rwf660-prepared-20261107']
+    branches: ['issue-9910-rwf660-result-race-20261107']
     paths: ['.github/workflows/rwf660-exact-current-cmd-verification.yml']
 permissions:
   contents: write
 jobs:
   live-cmd:
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 90
     steps:
       - uses: actions/checkout@v4
         with:
@@ -31,8 +31,8 @@ jobs:
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git clone --quiet https://github.com/Ma-XX-oN/RepoWorkflow.git "$RUNNER_TEMP/rwf-engine"
-          git -C "$RUNNER_TEMP/rwf-engine" checkout --quiet --detach 8e2ea611b73127354da4866b92b232aedc27c4f2
-          test "$(git -C "$RUNNER_TEMP/rwf-engine" rev-parse HEAD)" = '8e2ea611b73127354da4866b92b232aedc27c4f2'
+          git -C "$RUNNER_TEMP/rwf-engine" checkout --quiet --detach 118729ca788671d6a731bb41a5ecac04c48b5b2d
+          test "$(git -C "$RUNNER_TEMP/rwf-engine" rev-parse HEAD)" = '118729ca788671d6a731bb41a5ecac04c48b5b2d'
           python -m pip install -r "$RUNNER_TEMP/rwf-engine/requirements.txt"
           echo 'BEGIN_VERIFIED_COMMAND_SUCCESS'
           python "$RUNNER_TEMP/rwf-engine/repo_workflow.py" --root . version --json --remote --poll 4
