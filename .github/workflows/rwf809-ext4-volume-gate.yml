@@ -1,0 +1,70 @@
+name: RWF809 native Windows ext4 filesystem correctness gate
+on:
+  push:
+    branches:
+      - experiment/809-ext4-volume-gate-20261114
+    paths:
+      - .github/workflows/rwf809-ext4-volume-gate.yml
+      - rwf809/build-ext4-volume.sh
+      - rwf809/check-native-ext4.ps1
+permissions:
+  contents: read
+concurrency:
+  group: rwf809-ext4-volume-gate
+  cancel-in-progress: false
+jobs:
+  prepare-ext4:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 18
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Install image generation tools and verify versions
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq gdisk qemu-utils e2fsprogs
+          mkfs.ext4 -V
+          qemu-img --version
+      - name: Create ext4 GPT/VHDX with feature and integrity checks
+        shell: bash
+        run: |
+          bash ./rwf809/build-ext4-volume.sh "$GITHUB_WORKSPACE/image"
+      - name: Publish validated deterministic ext4 image
+        uses: actions/upload-artifact@v4
+        with:
+          name: rwf809-prepared-ext4-image
+          path: image/
+          retention-days: 3
+          if-no-files-found: error
+  windows-ext4:
+    needs: prepare-ext4
+    runs-on: windows-2025
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Download byte-identical ext4 image
+        uses: actions/download-artifact@v4
+        with:
+          name: rwf809-prepared-ext4-image
+          path: ext4-image/
+      - name: Install previously verified signed Ext4Fsd v0.71
+        shell: pwsh
+        run: |
+          & .\rwf809\probe-ext4-driver.ps1 -Output (Join-Path $env:GITHUB_WORKSPACE 'driver-results')
+      - name: Verify native Windows read-write, enumeration and remount persistence
+        shell: pwsh
+        run: |
+          & .\rwf809\check-native-ext4.ps1 -Output (Join-Path $env:GITHUB_WORKSPACE 'results')
+      - name: Preserve native gate evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: rwf809-native-ext4-correctness
+          path: |
+            results/
+            driver-results/driver-probe.json
+          retention-days: 7
+          if-no-files-found: warn
