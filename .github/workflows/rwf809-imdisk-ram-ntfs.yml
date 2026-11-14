@@ -1,0 +1,29 @@
+name: RWF809 Windows RAM-backed NTFS driver capability
+on:
+  push:
+    branches:
+      - experiment/809-imdisk-ram-ntfs-20261114
+    paths:
+      - .github/workflows/rwf809-imdisk-ram-ntfs.yml
+      - rwf809/probe-imdisk-ram-ntfs.ps1
+permissions:
+  contents: read
+jobs:
+  windows-ram:
+    runs-on: windows-2025
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Validate signed driver and ephemeral RAM NTFS read/write
+        shell: pwsh
+        run: |
+          & .\rwf809\probe-imdisk-ram-ntfs.ps1 -Output (Join-Path $env:GITHUB_WORKSPACE 'ram-results')
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: rwf809-native-windows-ram-ntfs-proof
+          path: ram-results/
+          if-no-files-found: warn
+          retention-days: 7
