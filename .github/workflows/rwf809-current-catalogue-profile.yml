@@ -1,0 +1,55 @@
+name: RWF809 current catalogue exact-SHA Windows Git subprocess callsite profile
+on:
+  push:
+    branches:
+      - experiment/809-current-catalogue-git-callsite-20261114
+    paths:
+      - .github/workflows/rwf809-current-catalogue-profile.yml
+      - rwf809/profile_catalogue.py
+      - rwf809/profiler/sitecustomize.py
+permissions:
+  contents: read
+concurrency:
+  group: rwf809-current-catalogue-windows-profile
+  cancel-in-progress: false
+jobs:
+  windows-catalogue-profiling:
+    runs-on: windows-2025
+    timeout-minutes: 19
+    steps:
+      - name: Checkout isolated profiler workbench
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Checkout exact current RepoWorkflow source without mutation
+        uses: actions/checkout@v4
+        with:
+          repository: Ma-XX-oN/RepoWorkflow
+          ref: 839404b33bbb9fa3ac0dcfdbcc68e5ad34ba0e66
+          path: engine
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Prepare exact dependency and assert profiler Python syntax
+        shell: pwsh
+        run: |
+          $ErrorActionPreference='Stop'
+          python -m pip install -r engine/requirements.txt
+          if ($LASTEXITCODE -ne 0) {throw 'Pinned dependencies installation failed'}
+          python -m py_compile rwf809/profile_catalogue.py rwf809/profiler/sitecustomize.py
+          if ($LASTEXITCODE -ne 0) {throw 'Profiler syntax check failed'}
+          Write-Host "RWF809_CATALOGUE_PROFILE_BEGIN sha=839404b33bbb9fa3ac0dcfdbcc68e5ad34ba0e66"
+      - name: Profile ONLY exact catalogue-selected modules and their Git subprocess callsites
+        shell: pwsh
+        run: |
+          & python rwf809/profile_catalogue.py
+          if ($LASTEXITCODE -ne 0) {throw 'Selected catalogue profile failed'}
+      - name: Archive source-callsite evidence even for failed tests
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: rwf809-current-windows-catalogue-git-callsite
+          path: profile-results/
+          retention-days: 7
+          if-no-files-found: warn
