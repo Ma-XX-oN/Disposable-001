@@ -26,7 +26,7 @@ function New-PrivateVolume {
   param([ValidateSet('NTFS','ReFS')][string]$Fs)
   $path = Join-Path $env:RUNNER_TEMP "rwf809-$($Fs.ToLowerInvariant())-$env:GITHUB_RUN_ID.vhdx"
   if (Test-Path -LiteralPath $path) { throw "Existing VHDX cannot be overwritten: $path" }
-  New-VHD -Path $path -SizeBytes 1GB -Dynamic -ErrorAction Stop | Out-Null
+  New-VHD -Path $path -SizeBytes 8GB -Dynamic -ErrorAction Stop | Out-Null
   $created.Add($path)
   $disk = Mount-VHD -Path $path -Passthru -ErrorAction Stop | Get-Disk -ErrorAction Stop
   if ($disk.IsBoot -or $disk.IsSystem -or $disk.PartitionStyle -ne 'RAW') {
@@ -35,6 +35,7 @@ function New-PrivateVolume {
   $disk | Initialize-Disk -PartitionStyle GPT -ErrorAction Stop | Out-Null
   $part = New-Partition -DiskNumber $disk.Number -UseMaximumSize -AssignDriveLetter -ErrorAction Stop
   if ($part.DriveLetter -in @('C','D')) { throw 'Unexpected protected drive letter' }
+  Write-Host "RWF809_FS_FORMAT_BEGIN filesystem=$Fs disk=$($disk.Number) size_bytes=$($disk.Size)"
   $part | Format-Volume -FileSystem $Fs -AllocationUnitSize 4096 -NewFileSystemLabel "RWF809$Fs" -Force -Confirm:$false -ErrorAction Stop | Out-Null
   $vol = Get-Volume -DriveLetter $part.DriveLetter -ErrorAction Stop
   if ([string]$vol.FileSystemType -ne $Fs -or $vol.AllocationUnitSize -ne 4096) {
@@ -140,7 +141,7 @@ try {
     benchmark_binary_sha256 = $exeHash
     runner = $env:ImageOS; runner_version = $env:ImageVersion
     backing_filesystem = $backingFs
-    vhd_type = '1GiB each; NTFS/ReFS dynamic, ext4 QEMU-converted dynamic; GPT, 4KiB allocation units'
+    vhd_type = '8GiB each; NTFS/ReFS dynamic, ext4 QEMU-converted dynamic; GPT, 4KiB allocation units'
     defender = $defender; volumes = @($volumes['NTFS'], $volumes['ReFS'], $volumes['ext4'])
     dev_drive_queries = $devDriveQueries
     schedule = 'NTFS,ReFS,ext4,ReFS,ext4,NTFS repeated 4x; 8 workloads per FS'
