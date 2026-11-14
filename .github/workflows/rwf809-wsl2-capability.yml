@@ -1,0 +1,44 @@
+name: RWF809 Windows WSL2 capability read-only probe
+on:
+  push:
+    branches:
+      - experiment/809-wsl2-capability-20261114
+    paths:
+      - .github/workflows/rwf809-wsl2-capability.yml
+permissions:
+  contents: read
+jobs:
+  windows-capability:
+    runs-on: windows-2025
+    timeout-minutes: 8
+    steps:
+      - name: Inspect WSL2, nested virtualization and Windows feature state
+        shell: pwsh
+        run: |
+          $ErrorActionPreference='Stop'
+          $out=Join-Path $env:GITHUB_WORKSPACE 'wsl2-proof'
+          New-Item -ItemType Directory -Force -Path $out | Out-Null
+          $report=[ordered]@{runner=$env:ImageOS;image_version=$env:ImageVersion;os=(Get-CimInstance Win32_OperatingSystem | Select-Object Caption,BuildNumber,Version)}
+          foreach ($n in @('Microsoft-Windows-Subsystem-Linux','VirtualMachinePlatform','Microsoft-Hyper-V-All')) {
+            try {
+              $v=Get-WindowsOptionalFeature -Online -FeatureName $n -ErrorAction Stop
+              $report[$n]=[ordered]@{state=[string]$v.State;restart_needed=[string]$v.RestartNeeded}
+            } catch { $report[$n]=[ordered]@{error=$_.Exception.Message} }
+          }
+          $report.cpu=@(Get-CimInstance Win32_Processor | Select-Object Name,VirtualizationFirmwareEnabled,VMMonitorModeExtensions,SecondLevelAddressTranslationExtensions)
+          $report.wsl_path=[string](Get-Command wsl.exe -ErrorAction SilentlyContinue | Select-Object -ExpandProperty Source)
+          $report.wsl_status=(& wsl.exe --status 2>&1 | Out-String)
+          $report.wsl_status_exit=$LASTEXITCODE
+          $report.wsl_version=(& wsl.exe --version 2>&1 | Out-String)
+          $report.wsl_version_exit=$LASTEXITCODE
+          $report.wsl_distros=(& wsl.exe --list --verbose 2>&1 | Out-String)
+          $report.wsl_distros_exit=$LASTEXITCODE
+          $report | ConvertTo-Json -Depth 7 | Set-Content (Join-Path $out 'wsl2-capability.json') -Encoding utf8
+          Write-Host "RWF809_WSL2_CAPABILITY_PROBED image=$env:ImageVersion wsl_status_exit=$($report.wsl_status_exit)"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: rwf809-wsl2-capability
+          path: wsl2-proof/
+          if-no-files-found: warn
+          retention-days: 7
