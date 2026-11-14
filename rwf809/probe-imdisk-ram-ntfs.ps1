@@ -15,6 +15,8 @@ try {
   Invoke-WebRequest -Uri $report.source -OutFile $zip -ErrorAction Stop
   $report.zip_bytes=(Get-Item $zip).Length
   $report.zip_sha256=(Get-FileHash -LiteralPath $zip -Algorithm SHA256).Hash.ToLowerInvariant()
+  if ($report.zip_sha256 -ne 'd42059314384992b5e7754a5734e66e7ad0ad7971f69a2b5aa106429b47c4a9c' -or
+      $report.zip_bytes -ne 861512) {throw 'Official ImDisk package SHA/size mismatch'}
   Expand-Archive -Path $zip -DestinationPath $dir -ErrorAction Stop
   $inf=@(Get-ChildItem -LiteralPath $dir -Filter imdisk.inf -Recurse -File)
   if ($inf.Count -ne 1) {throw "Expected unique ImDisk INF, found $($inf.Count)"}
@@ -38,28 +40,54 @@ try {
   $cli=@(Get-ChildItem -LiteralPath $dir -Filter 'imdisk.exe' -Recurse -File | Where-Object {$_.FullName -match '(?i)amd64|x64'})
   if ($cli.Count -ne 1) {throw "Expected unique x64 imdisk CLI; got $($cli.Count)"}
   Write-Host "RWF809_RAM_DRIVER_DOWNLOAD_PASS sha256=$($report.zip_sha256) bytes=$($report.zip_bytes)"
-  # The prior rundll32 SetupAPI path blocked in CI; use supported PnPUtil.
-  $stdout=Join-Path $Output 'pnputil-stdout.txt'
-  $stderr=Join-Path $Output 'pnputil-stderr.txt'
-  $arguments='/add-driver "'+$inf[0].FullName+'" /install'
-  $setup=Start-Process -FilePath (Join-Path $env:SystemRoot 'System32\pnputil.exe') -ArgumentList $arguments -PassThru -RedirectStandardOutput $stdout -RedirectStandardError $stderr -ErrorAction Stop
-  if (-not $setup.WaitForExit(30000)) {
-    Stop-Process -Id $setup.Id -Force -ErrorAction SilentlyContinue
-    throw 'PnPUtil did not complete in 30 seconds'
+  # This is a disposable-runner probe for a Microsoft-signed kernel SYS.
+  # PnPUtil rejected the unsigned legacy INF, but driver signing must
+  # still be enforced by the Windows kernel. Do not enable test signing.
+  $driver=@($drivers | Where-Object {
+    $_.FullName -match '(?i)[\\/]sys[\\/]amd64[\\/]imdisk\.sys$'
+  })
+  if ($driver.Count -ne 1) {throw "Expected one x64 driver file, got $($driver.Count)"}
+  $signature=Get-AuthenticodeSignature -FilePath $driver[0].FullName
+  if ($signature.Status -ne 'Valid' -or
+      $signature.SignerCertificate.Subject -notmatch 'Microsoft Windows Hardware Compatibility Publisher') {
+    throw 'x64 driver does not have valid Microsoft hardware publisher signature'
   }
-  $report.pnputil_exit=$setup.ExitCode
-  if ($setup.ExitCode -ne 0) {throw "PnPUtil INF install failed $($setup.ExitCode)"}
+  $driverSha=(Get-FileHash -LiteralPath $driver[0].FullName -Algorithm SHA256).Hash.ToLowerInvariant()
+  if ($driverSha -ne '72873d35ee3a9d9ef1311bbb6fdefd2dfea47b4752a6f1904bbdc6dc51afd820') {
+    throw "x64 kernel SYS identity unexpectedly changed $driverSha"
+  }
+  $destination=Join-Path $env:SystemRoot 'System32\drivers\imdisk.sys'
+  if (Test-Path -LiteralPath $destination) {throw 'ImDisk driver already exists in system directory'}
+  $existing=(& sc.exe query ImDisk 2>&1 | Out-String)
+  if ($LASTEXITCODE -eq 0) {throw 'Existing ImDisk driver service; refuse to replace'}
+  Copy-Item -LiteralPath $driver[0].FullName -Destination $destination -ErrorAction Stop
+  $report.installed_sys_sha256=(Get-FileHash -LiteralPath $destination -Algorithm SHA256).Hash.ToLowerInvariant()
+  if ($report.installed_sys_sha256 -ne $driverSha) {throw 'Copied driver bytes mismatch'}
+  $created=(& sc.exe create ImDisk 'type=' kernel 'start=' demand 'binPath=' $destination 2>&1 | Out-String)
+  $report.service_create_output=$created
+  $report.service_create_exit=$LASTEXITCODE
+  if ($LASTEXITCODE -ne 0) {throw "SCM could not register signed driver: $created"}
   $report.service_query=(& sc.exe query ImDisk 2>&1 | Out-String)
   if ($LASTEXITCODE -ne 0) {throw "ImDisk not registered as service: $($report.service_query)"}
   if ($report.service_query -notmatch '(?mi)STATE\s*:\s*4\s+RUNNING') {
     $start=(& sc.exe start ImDisk 2>&1 | Out-String)
     $report.service_start=$start
+    $report.service_start_exit=$LASTEXITCODE
   }
   $report.service_final=(& sc.exe query ImDisk 2>&1 | Out-String)
   if ($report.service_final -notmatch '(?mi)STATE\s*:\s*4\s+RUNNING') {throw 'ImDisk service failed to run'}
-  & $cli[0].FullName -a -s '512M' -m 'R:' -p '/fs:ntfs /q /y'
-  if ($LASTEXITCODE -ne 0) {throw "ImDisk RAM volume allocation failed $LASTEXITCODE"}
+  $mountArgs='-a -s 512M -m R: -p "/fs:ntfs /q /y"'
+  $mountOut=Join-Path $Output 'ram-mount-stdout.txt'
+  $mountErr=Join-Path $Output 'ram-mount-stderr.txt'
+  $mountProc=Start-Process -FilePath $cli[0].FullName -ArgumentList $mountArgs -PassThru -RedirectStandardOutput $mountOut -RedirectStandardError $mountErr -ErrorAction Stop
+  if (-not $mountProc.WaitForExit(45000)) {
+    Stop-Process -Id $mountProc.Id -Force -ErrorAction SilentlyContinue
+    throw 'ImDisk volume creation exceeded 45s'
+  }
+  $report.imdisk_volume_exit=$mountProc.ExitCode
+  if ($mountProc.ExitCode -ne 0) {throw "ImDisk RAM volume allocation failed $($mountProc.ExitCode)"}
   $mounted=$true
+  $report.imdisk_volume_info=(& $cli[0].FullName -l -m 'R:' 2>&1 | Out-String)
   $info=(& fsutil.exe fsinfo volumeinfo 'R:' 2>&1 | Out-String)
   $report.volume_info=$info
   if ($LASTEXITCODE -ne 0 -or $info -notmatch 'File System Name\s*:\s*NTFS') {throw "RAM volume is not NTFS: $info"}
@@ -77,7 +105,7 @@ try {
   throw
 } finally {
   if ($mounted) {
-    try {& $cli[0].FullName -D -m 'R:' | Out-Null} catch {Write-Warning "RAM cleanup: $_"}
+    Write-Host 'RWF809_RAM_EPHEMERAL_TEARDOWN_BY_RUNNER R:'
   }
   Persist
 }
