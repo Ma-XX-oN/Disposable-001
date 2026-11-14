@@ -30,10 +30,10 @@ jobs:
             $report.kernel_exit=$LASTEXITCODE
             $report.kernel=$kernel
             if ($LASTEXITCODE -ne 0) {throw "WSL Linux kernel launch failed $LASTEXITCODE"}
-            $fs=(& wsl.exe -d Ubuntu -u root -- stat -f -c '%T' / 2>&1 | Out-String)
+            $fs=(& wsl.exe -d Ubuntu -u root -- findmnt -no FSTYPE / 2>&1 | Out-String)
             $report.rootfs=$fs; $report.fs_exit=$LASTEXITCODE
-            if ($LASTEXITCODE -ne 0) {throw "WSL ext4 rootfs query failed: $LASTEXITCODE"}
-            $proof=(& wsl.exe -d Ubuntu -u root -- sh -c 'printf rwf809-wsl2-ext4 >/tmp/rwf809-proof && sha256sum /tmp/rwf809-proof && stat -f -c %T /tmp' 2>&1 | Out-String)
+            if ($LASTEXITCODE -ne 0 -or $fs.Trim() -ne 'ext4') {throw "WSL root filesystem is not verified ext4: $($fs.Trim()) exit=$LASTEXITCODE"}
+            $proof=(& wsl.exe -d Ubuntu -u root -- sh -c 'printf rwf809-wsl2-ext4 >/root/rwf809-proof && sha256sum /root/rwf809-proof && findmnt -no FSTYPE /' 2>&1 | Out-String)
             $report.write_proof=$proof; $report.write_exit=$LASTEXITCODE
             if ($LASTEXITCODE -ne 0) {throw "WSL ext4 RW proof failed $LASTEXITCODE"}
             $report.stage='PASS'
