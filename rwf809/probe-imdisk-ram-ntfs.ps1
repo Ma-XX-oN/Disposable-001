@@ -38,10 +38,17 @@ try {
   $cli=@(Get-ChildItem -LiteralPath $dir -Filter 'imdisk.exe' -Recurse -File | Where-Object {$_.FullName -match '(?i)amd64|x64'})
   if ($cli.Count -ne 1) {throw "Expected unique x64 imdisk CLI; got $($cli.Count)"}
   Write-Host "RWF809_RAM_DRIVER_DOWNLOAD_PASS sha256=$($report.zip_sha256) bytes=$($report.zip_bytes)"
-  $arguments='setupapi.dll,InstallHinfSection DefaultInstall 132 "'+$inf[0].FullName+'"'
-  $setup=Start-Process -FilePath (Join-Path $env:SystemRoot 'System32\rundll32.exe') -ArgumentList $arguments -Wait -PassThru -ErrorAction Stop
-  $report.rundll32_exit=$setup.ExitCode
-  if ($setup.ExitCode -ne 0) {throw "INF setup returned $($setup.ExitCode)"}
+  # The prior rundll32 SetupAPI path blocked in CI; use supported PnPUtil.
+  $stdout=Join-Path $Output 'pnputil-stdout.txt'
+  $stderr=Join-Path $Output 'pnputil-stderr.txt'
+  $arguments='/add-driver "'+$inf[0].FullName+'" /install'
+  $setup=Start-Process -FilePath (Join-Path $env:SystemRoot 'System32\pnputil.exe') -ArgumentList $arguments -PassThru -RedirectStandardOutput $stdout -RedirectStandardError $stderr -ErrorAction Stop
+  if (-not $setup.WaitForExit(30000)) {
+    Stop-Process -Id $setup.Id -Force -ErrorAction SilentlyContinue
+    throw 'PnPUtil did not complete in 30 seconds'
+  }
+  $report.pnputil_exit=$setup.ExitCode
+  if ($setup.ExitCode -ne 0) {throw "PnPUtil INF install failed $($setup.ExitCode)"}
   $report.service_query=(& sc.exe query ImDisk 2>&1 | Out-String)
   if ($LASTEXITCODE -ne 0) {throw "ImDisk not registered as service: $($report.service_query)"}
   if ($report.service_query -notmatch '(?mi)STATE\s*:\s*4\s+RUNNING') {
