@@ -1,0 +1,66 @@
+name: RWF809 CPU.Light archived ETW wait-reason replay without a benchmark rerun
+on:
+  push:
+    branches:
+      - experiment/809-kernel-light-wait-replay-20261114
+    paths:
+      - .github/workflows/rwf809-kernel-wait-replay.yml
+      - rwf809/kernel_wait_replay/**
+permissions:
+  contents: read
+  actions: read
+jobs:
+  windows-etw-readonly:
+    runs-on: windows-2025
+    timeout-minutes: 9
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Compile Microsoft TraceProcessor with reason and waker attribution
+        shell: pwsh
+        run: |
+          dotnet build rwf809/kernel_wait_replay/KernelReader.csproj -c Release --nologo
+          if ($LASTEXITCODE -ne 0) {throw 'Wait reason reader compiler failed'}
+      - name: Download ORIGINAL accepted CPU.Light ETL files; never rerun the workload
+        uses: actions/download-artifact@v4
+        with:
+          name: rwf809-kernel-cpu-only-low-overhead
+          repository: Ma-XX-oN/Disposable-001
+          run-id: 43644279823
+          github-token: ${{ github.token }}
+          digest-mismatch: error
+          path: light-etw
+      - name: Verify original zero-loss trace identities and identify wait reasons
+        shell: pwsh
+        run: |
+          $ErrorActionPreference='Stop'
+          $sha=@{
+            '02-cpu-light'='7eb4d5f418622b8b9a2e4d38342580fbac0c873cda5dc5b21414b52d31f73396'
+            '04-cpu-light'='529099021947343ebe6c0d144f8cdc985907131e2aa3cf8b37c7f0c5885a741d'
+          }
+          New-Item -ItemType Directory -Force -Path wait-results | Out-Null
+          foreach ($stage in @('02-cpu-light','04-cpu-light')) {
+            $etl=Join-Path $env:GITHUB_WORKSPACE "light-etw/$stage.etl"
+            $ident=Get-Content -LiteralPath (Join-Path $env:GITHUB_WORKSPACE "light-etw/$stage-identity.json") -Raw | ConvertFrom-Json
+            $digest=(Get-FileHash $etl -Algorithm SHA256).Hash.ToLowerInvariant()
+            if ($digest -ne $sha[$stage] -or $digest -ne $ident.etl_sha256 -or
+                (Get-Item $etl).Length -ne $ident.etl_bytes -or $ident.events_lost -ne 0 -or
+                $ident.source_sha -ne 'd18a959ecc7ec551ae0b83d68b7155965edee4f4') {
+              throw "Wrong source or corrupt ETL for $stage"
+            }
+            $target=Join-Path $env:GITHUB_WORKSPACE "wait-results/$stage"
+            New-Item -ItemType Directory -Force -Path $target | Out-Null
+            & dotnet rwf809/kernel_wait_replay/bin/Release/net8.0/KernelReader.dll $etl $target
+            if ($LASTEXITCODE -ne 0) {throw "Wait reason parser failed $stage"}
+            $result=Get-Content -LiteralPath (Join-Path $target 'kernel-analysis.json') -Raw | ConvertFrom-Json
+            if ($result.scheduling.count -lt 1 -or $result.scheduling.wait_reason_accounted_ms -lt 0) {throw 'Missing wait attribution'}
+            Write-Host "RWF809_KERNEL_WAIT_REPLAY_PASS stage=$stage count=$($result.scheduling.count) wait_ms=$($result.scheduling.total_thread_waiting_ms)"
+          }
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: rwf809-low-overhead-kernel-wait-reasons
+          path: wait-results/
+          if-no-files-found: warn
+          retention-days: 7
