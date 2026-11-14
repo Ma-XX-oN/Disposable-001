@@ -1,0 +1,67 @@
+name: RWF809 three native Windows filesystems benchmark
+on:
+  push:
+    branches:
+      - experiment/809-three-fs-matched-8g-20261114
+    paths:
+      - .github/workflows/rwf809-three-fs-matched-8g.yml
+      - rwf809/compare-three-filesystems.ps1
+      - rwf809/build-ext4-volume.sh
+permissions:
+  contents: read
+concurrency:
+  group: rwf809-three-fs-matched-8g
+  cancel-in-progress: false
+jobs:
+  prepare-ext4:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 18
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Install required Linux ext4 and VHDX tools
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq gdisk qemu-utils e2fsprogs
+          mkfs.ext4 -V
+          qemu-img --version
+      - name: Build checked ext4 8 GiB VHDX
+        shell: bash
+        run: bash ./rwf809/build-ext4-volume.sh "$GITHUB_WORKSPACE/image"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: rwf809-validated-ext4-vhdx
+          path: image/
+          retention-days: 3
+          if-no-files-found: error
+  windows-compare:
+    needs: prepare-ext4
+    runs-on: windows-2025
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/download-artifact@v4
+        with:
+          name: rwf809-validated-ext4-vhdx
+          path: ext4-image/
+      - name: Install known-signed Ext4Fsd v0.71 and prove loaded
+        shell: pwsh
+        run: |
+          & .\rwf809\probe-ext4-driver.ps1 -Output (Join-Path $env:GITHUB_WORKSPACE 'driver-results')
+      - name: Validate and time all 3 filesystems, identical C executable
+        shell: pwsh
+        run: |
+          & .\rwf809\compare-three-filesystems.ps1 -Output (Join-Path $env:GITHUB_WORKSPACE 'results')
+      - name: Preserve raw timings and identities even on failure
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: rwf809-three-native-filesystems
+          path: |
+            results/
+            driver-results/driver-probe.json
+          if-no-files-found: warn
+          retention-days: 7
