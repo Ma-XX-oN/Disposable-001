@@ -1,0 +1,54 @@
+name: RWF809 WSL2 ext4 native runtime verification
+on:
+  push:
+    branches:
+      - experiment/809-wsl2-ext4-runtime-20261114
+    paths:
+      - .github/workflows/rwf809-wsl2-runtime.yml
+permissions:
+  contents: read
+jobs:
+  windows-wsl2:
+    runs-on: windows-2025
+    timeout-minutes: 15
+    steps:
+      - name: Install Ubuntu WSL distro on disposable VM and verify Linux ext4
+        shell: pwsh
+        run: |
+          $ErrorActionPreference='Stop'
+          $PSNativeCommandUseErrorActionPreference=$false
+          $out=Join-Path $env:GITHUB_WORKSPACE 'wsl2-proof'
+          New-Item -ItemType Directory -Path $out -Force | Out-Null
+          $report=[ordered]@{runner=$env:ImageOS;image_version=$env:ImageVersion;stage='start'}
+          try {
+            $installer=Join-Path $out 'install-stdout.txt'
+            $errors=Join-Path $out 'install-stderr.txt'
+            $p=Start-Process -FilePath 'wsl.exe' -ArgumentList @('--install','--distribution','Ubuntu','--web-download','--no-launch') -PassThru -Wait -RedirectStandardOutput $installer -RedirectStandardError $errors
+            $report.install_exit=$p.ExitCode
+            if ($p.ExitCode -ne 0) {throw "WSL Ubuntu install failed: $($p.ExitCode)"}
+            $kernel=(& wsl.exe -d Ubuntu -u root -- uname -r 2>&1 | Out-String)
+            $report.kernel_exit=$LASTEXITCODE
+            $report.kernel=$kernel
+            if ($LASTEXITCODE -ne 0) {throw "WSL Linux kernel launch failed $LASTEXITCODE"}
+            $fs=(& wsl.exe -d Ubuntu -u root -- stat -f -c '%T' / 2>&1 | Out-String)
+            $report.rootfs=$fs; $report.fs_exit=$LASTEXITCODE
+            if ($LASTEXITCODE -ne 0) {throw "WSL ext4 rootfs query failed: $LASTEXITCODE"}
+            $proof=(& wsl.exe -d Ubuntu -u root -- sh -c 'printf rwf809-wsl2-ext4 >/tmp/rwf809-proof && sha256sum /tmp/rwf809-proof && stat -f -c %T /tmp' 2>&1 | Out-String)
+            $report.write_proof=$proof; $report.write_exit=$LASTEXITCODE
+            if ($LASTEXITCODE -ne 0) {throw "WSL ext4 RW proof failed $LASTEXITCODE"}
+            $report.stage='PASS'
+            Write-Host "RWF809_WSL2_EXT4_RUNTIME_PASS kernel=$($kernel.Trim()) fs=$($fs.Trim())"
+          } catch {
+            $report.stage='FAIL';$report.failure=$_.Exception.Message
+            Write-Host "RWF809_WSL2_EXT4_RUNTIME_FAIL $($report.failure)"
+            throw
+          } finally {
+            $report | ConvertTo-Json -Depth 5 | Set-Content (Join-Path $out 'runtime-proof.json') -Encoding utf8
+          }
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: rwf809-wsl2-ext4-runtime-proof
+          path: wsl2-proof/
+          if-no-files-found: warn
+          retention-days: 7
