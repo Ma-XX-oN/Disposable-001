@@ -55,7 +55,7 @@ jobs:
       - name: Compare 8000 cached file operations one versus distinct across 3 FS
         shell: pwsh
         run: |
-          & .\rwf809\compare-three-filesystems.ps1 -Output (Join-Path $env:GITHUB_WORKSPACE 'results')
+          & .\rwf809\compare-cache-paths.ps1 -Output (Join-Path $env:GITHUB_WORKSPACE 'results')
       - name: Preserve raw timings and identities even on failure
         if: always()
         uses: actions/upload-artifact@v4
