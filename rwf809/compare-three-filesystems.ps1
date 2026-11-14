@@ -204,12 +204,10 @@ try {
   $summary | Sort-Object mode, threads, filesystem | Format-Table -AutoSize | Out-String | Write-Host
   Write-Host "RWF809_FS_COMPARISON_PASS source=$sourceSha binary=$exeHash 1152 rows 960 measured 24 summaries"
 } finally {
+  # The hosted runner VM is disposed after this job. A Windows native FS
+  # dismount blocked after all 1152 samples completed in run 43620335149.
+  # Never hold accepted measurement publication on a nonessential dismount.
   foreach ($path in $created) {
-    try {
-      if (Test-Path -LiteralPath $path) {
-        Dismount-VHD -Path $path -ErrorAction Stop
-        Remove-Item -LiteralPath $path -Force -ErrorAction Stop
-      }
-    } catch { Write-Warning "Only experiment VHD cleanup failed: $path $_" }
+    Write-Host "RWF809_EPHEMERAL_VHD_TEARDOWN_BY_HOST $path"
   }
 }
