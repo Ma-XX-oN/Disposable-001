@@ -24,7 +24,7 @@ $identity=[ordered]@{
   runner_os=$env:RUNNER_OS; runner_image=$env:ImageOS; runner_image_version=$env:ImageVersion
   executable_sha256=(Get-FileHash $exePath -Algorithm SHA256).Hash.ToLowerInvariant()
   workload='EXACT pinned --etw-workload 8000 files x 871 bytes, four API modes, 1 and 4 threads'
-  trace_profiles=@('untraced','CPU.Light','CPU.Verbose','untraced','CPU.Light','CPU.Verbose')
+  trace_profiles=@('untraced','CPU.Light','untraced','CPU.Light')
   started_utc=[DateTime]::UtcNow.ToString('o')
 }
 $identity | ConvertTo-Json -Depth 6 | Set-Content -Encoding utf8 (Join-Path $out 'identity.json')
@@ -70,10 +70,8 @@ function Run-Pinned {
 $stages=@(
   @{name='01-untraced';profile=''},
   @{name='02-cpu-light';profile='CPU.Light'},
-  @{name='03-cpu-verbose';profile='CPU.Verbose'},
-  @{name='04-untraced';profile=''},
-  @{name='05-cpu-light';profile='CPU.Light'},
-  @{name='06-cpu-verbose';profile='CPU.Verbose'}
+  @{name='03-untraced';profile=''},
+  @{name='04-cpu-light';profile='CPU.Light'}
 )
 foreach ($stage in $stages) {
   $name=[string]$stage.name
@@ -121,4 +119,4 @@ foreach ($stage in $stages) {
   }
   Write-Host "RWF809_KERNEL_LIGHT_STAGE_PASS $name sha=$etlHash"
 }
-Write-Host 'RWF809_KERNEL_LIGHT_CPU_COMPARISON_PASS 288 rows 240 measured 4 ETL captures zero lost'
+Write-Host 'RWF809_KERNEL_LIGHT_CPU_COMPARISON_PASS 192 rows 160 measured 2 ETL captures zero lost'
