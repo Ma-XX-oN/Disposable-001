@@ -24,6 +24,9 @@ jobs:
           gcc --version | head -1 | tee results/compiler.txt
           gcc -std=c11 -O2 -Wall -Wextra -Werror -pthread -o /tmp/rwf809-posix-bench rwf809/posix-ext4-benchmark.c
           sha256sum rwf809/posix-ext4-benchmark.c /tmp/rwf809-posix-bench > results/hashes.txt
+          mkdir -p pinned-elf
+          cp /tmp/rwf809-posix-bench pinned-elf/rwf809-posix-bench
+          sha256sum pinned-elf/rwf809-posix-bench > pinned-elf/sha256.txt
           truncate -s 8589934592 "$RUNNER_TEMP/rwf809-native-ext4.img"
           mkfs.ext4 -q -F -b 4096 "$RUNNER_TEMP/rwf809-native-ext4.img"
           sudo mkdir -p /mnt/rwf809-ext4
@@ -38,6 +41,12 @@ jobs:
           sudo umount /mnt/rwf809-ext4
           echo "RWF809_NATIVE_LINUX_EXT4_BENCH_PASS"
       - uses: actions/upload-artifact@v4
+        with:
+          name: rwf809-posix-pinned-elf
+          path: pinned-elf/
+          if-no-files-found: error
+          retention-days: 7
+      - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: rwf809-posix-native-linux-ext4
@@ -45,12 +54,17 @@ jobs:
           if-no-files-found: warn
           retention-days: 7
   windows-wsl2:
+    needs: linux-native
     runs-on: windows-2025
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
         with:
           persist-credentials: false
+      - uses: actions/download-artifact@v4
+        with:
+          name: rwf809-posix-pinned-elf
+          path: pinned-elf/
       - name: Install and start actual WSL2 Ubuntu
         shell: pwsh
         run: |
@@ -64,21 +78,25 @@ jobs:
           if ($LASTEXITCODE -ne 0 -or $root -ne 'ext4') {throw "WSL root is not ext4: $root"}
           (& wsl.exe -d Ubuntu -u root -- uname -r) | Set-Content -Path results\kernel.txt -Encoding utf8
           $winSource=(Join-Path $env:GITHUB_WORKSPACE 'rwf809\posix-ext4-benchmark.c')
-          $linuxSource='/mnt/'+$winSource.Substring(0,1).ToLowerInvariant()+'/'+$winSource.Substring(3).Replace('\','/')
-          & wsl.exe -d Ubuntu -u root -- test -f $linuxSource
-          if ($LASTEXITCODE -ne 0) {throw "Windows checkout unavailable inside WSL at $linuxSource"}
-          $expected=(Get-FileHash -LiteralPath $winSource -Algorithm SHA256).Hash.ToLowerInvariant()
-          $wsldata=(& wsl.exe -d Ubuntu -u root -- sha256sum $linuxSource | Out-String).Trim()
-          if ($LASTEXITCODE -ne 0 -or -not $wsldata.StartsWith($expected)) {throw "WSL source bytes differ from Windows checkout"}
-          # Commands compiled inside WSL2, while measurement and fixtures reside on Linux ext4.
-          & wsl.exe -d Ubuntu -u root -- apt-get update -qq
-          if ($LASTEXITCODE -ne 0) {throw 'WSL apt index failed'}
-          & wsl.exe -d Ubuntu -u root -- apt-get install -y -qq gcc libc6-dev
-          if ($LASTEXITCODE -ne 0) {throw 'WSL gcc installation failed'}
-          & wsl.exe -d Ubuntu -u root -- gcc -std=c11 -O2 -Wall -Wextra -Werror -pthread -o /root/rwf809-posix-bench $linuxSource
-          if ($LASTEXITCODE -ne 0) {throw 'WSL POSIX C compile failed'}
-          (& wsl.exe -d Ubuntu -u root -- gcc --version) | Select-Object -First 1 | Set-Content -Path results\compiler.txt -Encoding utf8
-          (& wsl.exe -d Ubuntu -u root -- sha256sum $linuxSource /root/rwf809-posix-bench) | Set-Content -Path results\hashes.txt -Encoding utf8
+          $gitBlob=(& git.exe rev-parse 'HEAD:rwf809/posix-ext4-benchmark.c' | Out-String).Trim()
+          if ($LASTEXITCODE -ne 0 -or $gitBlob.Length -ne 40) {throw "Pinned Git source blob lookup failed"}
+          $gitBlob | Set-Content -Path results\source-git-blob.txt -Encoding utf8
+          $winBinary=(Join-Path $env:GITHUB_WORKSPACE 'pinned-elf\rwf809-posix-bench')
+          $expected=(Get-Content -LiteralPath (Join-Path $env:GITHUB_WORKSPACE 'pinned-elf\sha256.txt') -Raw).Trim().Split(' ')[0].ToLowerInvariant()
+          $actual=(Get-FileHash -LiteralPath $winBinary -Algorithm SHA256).Hash.ToLowerInvariant()
+          if ($expected -ne $actual) {throw 'Downloaded ELF SHA does not match Linux producer'}
+          $linuxBinary='/mnt/'+$winBinary.Substring(0,1).ToLowerInvariant()+'/'+$winBinary.Substring(3).Replace('\','/')
+          & wsl.exe -d Ubuntu -u root -- test -f $linuxBinary
+          if ($LASTEXITCODE -ne 0) {throw "Linux cannot see downloaded ELF $linuxBinary"}
+          & wsl.exe -d Ubuntu -u root -- cp $linuxBinary /root/rwf809-posix-bench
+          if ($LASTEXITCODE -ne 0) {throw "Failed to copy compiled ELF to ext4 root"}
+          & wsl.exe -d Ubuntu -u root -- chmod 755 /root/rwf809-posix-bench
+          if ($LASTEXITCODE -ne 0) {throw "Failed to mark POSIX binary executable"}
+          $seen=(& wsl.exe -d Ubuntu -u root -- sha256sum /root/rwf809-posix-bench | Out-String).Trim()
+          if ($LASTEXITCODE -ne 0 -or -not $seen.StartsWith($expected)) {throw "WSL ext4 executable hash mismatch"}
+          $seen | Set-Content -Path results\hashes.txt -Encoding utf8
+          Write-Host "RWF809_EXACT_SAME_LINUX_ELF_SHA256 $expected"
+          (& wsl.exe -d Ubuntu -u root -- ldd --version) | Select-Object -First 1 | Set-Content -Path results\libc-version.txt -Encoding utf8
           & wsl.exe -d Ubuntu -u root -- mkdir -p /mnt/rwf809-ext4
           (& wsl.exe -d Ubuntu -u root -- findmnt -no FSTYPE,SOURCE,TARGET /) | Set-Content -Path results\mount.txt -Encoding utf8
           (& wsl.exe -d Ubuntu -u root -- stat -f -c '%s %b' /mnt/rwf809-ext4) | Set-Content -Path results\block-sizes.txt -Encoding utf8
