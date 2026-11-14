@@ -1,0 +1,44 @@
+name: RWF809 current untraced Linux and macOS process-launch comparator
+on:
+  push:
+    branches:
+      - experiment/809-current-launcher-linux-macos-20261114
+    paths:
+      - .github/workflows/rwf809-current-launchers-linux-macos.yml
+      - rwf809/launcher_probe.py
+permissions:
+  contents: read
+jobs:
+  posix-processes:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, macos-15]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 9
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/checkout@v4
+        with:
+          repository: Ma-XX-oN/RepoWorkflow
+          ref: 839404b33bbb9fa3ac0dcfdbcc68e5ad34ba0e66
+          path: engine
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Run unchanged compiled-noop/Git/Python launcher experiment
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m py_compile rwf809/launcher_probe.py
+          python rwf809/launcher_probe.py
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: rwf809-current-launcher-${{ matrix.os }}
+          path: launcher-results/
+          retention-days: 7
+          if-no-files-found: warn
