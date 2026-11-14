@@ -76,10 +76,19 @@ try {
     Get-MpComputerStatus | Select-Object AMRunningMode, AntivirusEnabled, RealTimeProtectionEnabled, AntivirusSignatureVersion
   } catch { [pscustomobject]@{ error = $_.Exception.Message } }
   (& fltmc.exe filters | Out-String) | Set-Content -LiteralPath (Join-Path $Output 'filters.txt') -Encoding utf8
-  (& fltmc.exe instances | Out-String) | Set-Content -LiteralPath (Join-Path $Output 'filter-instances.txt') -Encoding utf8
   $backingFs = (Get-Volume -DriveLetter $env:RUNNER_TEMP.Substring(0,1)).FileSystemType.ToString()
   $volumes['NTFS'] = New-PrivateVolume -Fs NTFS
   $volumes['ReFS'] = New-PrivateVolume -Fs ReFS
+  (& fltmc.exe instances | Out-String) | Set-Content -LiteralPath (Join-Path $Output 'filter-instances.txt') -Encoding utf8
+  $devDriveQueries = @{}
+  foreach ($fs in @('NTFS','ReFS')) {
+    try {
+      $query = (& fsutil.exe devdrv query $volumes[$fs].drive 2>&1 | Out-String).Trim()
+      $devDriveQueries[$fs] = [pscustomobject]@{ exit_code = $LASTEXITCODE; description = $query }
+    } catch {
+      $devDriveQueries[$fs] = [pscustomobject]@{ error = $_.Exception.Message }
+    }
+  }
   foreach ($fs in @('NTFS','ReFS')) {
     $prepared = Invoke-Fixture -Exe $exe -Directory $volumes[$fs].path -Argument '--etw-prepare'
     if ($prepared -notmatch 'RWF809_ETW_PREPARE_PASS') { throw "Fixture failed $fs" }
@@ -95,6 +104,7 @@ try {
     backing_filesystem = $backingFs
     vhd_type = 'dynamic, 8GiB each, GPT, 4KiB allocation units'
     defender = $defender; volumes = @($volumes['NTFS'], $volumes['ReFS'])
+    dev_drive_queries = $devDriveQueries
     schedule = 'NTFS,ReFS,ReFS,NTFS repeated 4x; 8 workloads per FS'
     config = 'No tracing, no Dobby, no Dev Drive flags, no Defender changes'
   } | ConvertTo-Json -Depth 6 | Set-Content -LiteralPath (Join-Path $Output 'identity.json') -Encoding utf8
