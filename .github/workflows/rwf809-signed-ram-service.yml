@@ -1,0 +1,29 @@
+name: RWF809 signed native RAM NTFS driver via SCM
+on:
+  push:
+    branches:
+      - experiment/809-signed-ram-service-20261114
+    paths:
+      - .github/workflows/rwf809-signed-ram-service.yml
+      - rwf809/probe-imdisk-ram-ntfs.ps1
+permissions:
+  contents: read
+jobs:
+  windows-ram:
+    runs-on: windows-2025
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Load validated Microsoft-signed ImDisk driver via SCM, format RAM NTFS and check byte identity
+        shell: pwsh
+        run: |
+          & .\rwf809\probe-imdisk-ram-ntfs.ps1 -Output (Join-Path $env:GITHUB_WORKSPACE 'ram-results')
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: rwf809-signed-ram-ntfs-service-proof
+          path: ram-results/
+          if-no-files-found: warn
+          retention-days: 7
