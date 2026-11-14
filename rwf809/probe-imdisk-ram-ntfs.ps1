@@ -39,6 +39,17 @@ try {
   }
   $cli=@(Get-ChildItem -LiteralPath $dir -Filter 'imdisk.exe' -Recurse -File | Where-Object {$_.FullName -match '(?i)amd64|x64'})
   if ($cli.Count -ne 1) {throw "Expected unique x64 imdisk CLI; got $($cli.Count)"}
+  # Exact native dumpbin /dependents proved that imdisk.exe imports imdisk.cpl.
+  # The unsigned legacy INF normally stages this DLL; the SCM-only probe must
+  # stage the matching x64 DLL alongside its calling executable instead.
+  $cliCpl=Join-Path $dir 'cpl\amd64\imdisk.cpl'
+  $destCpl=Join-Path $cli[0].DirectoryName 'imdisk.cpl'
+  if (-not (Test-Path -LiteralPath $cliCpl) -or (Test-Path -LiteralPath $destCpl)) {
+    throw 'Missing or ambiguous pinned x64 ImDisk CLI dependency'
+  }
+  Copy-Item -LiteralPath $cliCpl -Destination $destCpl -ErrorAction Stop
+  $report.staged_cli_cpl_sha256=(Get-FileHash -LiteralPath $destCpl -Algorithm SHA256).Hash.ToLowerInvariant()
+  Write-Host "RWF809_IMDISK_DEPENDENCY_STAGED imdisk.cpl sha256=$($report.staged_cli_cpl_sha256)"
   Write-Host "RWF809_RAM_DRIVER_DOWNLOAD_PASS sha256=$($report.zip_sha256) bytes=$($report.zip_bytes)"
   # This is a disposable-runner probe for a Microsoft-signed kernel SYS.
   # PnPUtil rejected the unsigned legacy INF, but driver signing must
