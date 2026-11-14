@@ -1,0 +1,41 @@
+name: RWF809 current untraced Windows process launcher latency
+on:
+  push:
+    branches:
+      - experiment/809-current-launcher-baseline-20261114
+    paths:
+      - .github/workflows/rwf809-current-launcher-baseline.yml
+      - rwf809/launcher_probe.py
+permissions:
+  contents: read
+jobs:
+  windows-processes:
+    runs-on: windows-2025
+    timeout-minutes: 9
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/checkout@v4
+        with:
+          repository: Ma-XX-oN/RepoWorkflow
+          ref: 839404b33bbb9fa3ac0dcfdbcc68e5ad34ba0e66
+          path: engine
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Validate probe syntax and measure 750 independent native launches
+        shell: pwsh
+        run: |
+          python -m py_compile rwf809/launcher_probe.py
+          if ($LASTEXITCODE -ne 0) {throw 'Source syntax invalid'}
+          & python rwf809/launcher_probe.py
+          if ($LASTEXITCODE -ne 0) {throw 'Launcher benchmark failed'}
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: rwf809-current-windows-launcher-baseline
+          path: launcher-results/
+          if-no-files-found: warn
+          retention-days: 7
