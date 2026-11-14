@@ -1,0 +1,28 @@
+name: RWF809 diagnose missing DLL for signed RAM driver utility
+on:
+  push:
+    branches:
+      - experiment/809-imdisk-cli-deps-20261114
+    paths:
+      - .github/workflows/rwf809-imdisk-cli-deps.yml
+      - rwf809/diagnose-imdisk-cli.ps1
+permissions:
+  contents: read
+jobs:
+  inspect:
+    runs-on: windows-2025
+    timeout-minutes: 6
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Verify exact ImDisk package and list native x64 CLI imports
+        shell: pwsh
+        run: |
+          & .\rwf809\diagnose-imdisk-cli.ps1
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: rwf809-imdisk-cli-dll-deps
+          path: ram-dependencies/
+          retention-days: 7
