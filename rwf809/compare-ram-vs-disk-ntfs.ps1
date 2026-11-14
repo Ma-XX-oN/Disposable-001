@@ -60,9 +60,25 @@ function Verify-RamVolume {
   $fs=(& fsutil.exe fsinfo volumeinfo 'R:' 2>&1 | Out-String)
   if ($LASTEXITCODE -ne 0 -or $fs -notmatch 'File System Name\s*:\s*NTFS' -or
       $fs -notmatch 'Is ReadWrite') {throw "Current R: RAM NTFS volume invalid: $fs"}
-  $ntfsInfo=(& fsutil.exe fsinfo ntfsinfo 'R:' 2>&1 | Out-String)
-  if ($LASTEXITCODE -ne 0 -or $ntfsInfo -notmatch 'Bytes Per Cluster\s*:\s*4096') {
-    throw "RAM NTFS cluster size mismatch: $ntfsInfo"
+  # fsutil fsinfo ntfsinfo rejects ImDisk virtual volumes with ERROR_INVALID_FUNCTION.
+  # Use the documented filesystem-neutral Win32 GetDiskFreeSpaceW API instead.
+  Add-Type -TypeDefinition @'
+using System;
+using System.Runtime.InteropServices;
+public static class Rwf809DiskGeometry {
+  [DllImport("kernel32.dll", CharSet=CharSet.Unicode, SetLastError=true, EntryPoint="GetDiskFreeSpaceW")]
+  public static extern bool GetDiskFreeSpace(
+    string root, out uint sectorsPerCluster, out uint bytesPerSector,
+    out uint freeClusters, out uint totalClusters);
+}
+'@
+  [uint32]$sectors=0; [uint32]$sectorBytes=0
+  [uint32]$free=0; [uint32]$total=0
+  $valid=[Rwf809DiskGeometry]::GetDiskFreeSpace('R:\',
+    [ref]$sectors, [ref]$sectorBytes, [ref]$free, [ref]$total)
+  $bytesPerCluster=[uint64]$sectors*[uint64]$sectorBytes
+  if (-not $valid -or $bytesPerCluster -ne 4096) {
+    throw "GetDiskFreeSpaceW RAM cluster verification failed: valid=$valid sectors=$sectors bytes=$sectorBytes"
   }
   $root='R:\bench'
   New-Item -ItemType Directory -Path $root -Force -ErrorAction Stop | Out-Null
