@@ -32,8 +32,8 @@ $prepare=(& $exePath --etw-prepare 2>&1 | Out-String)
 $prepare | Set-Content -Encoding utf8 (Join-Path $out 'prepare.txt')
 if ($LASTEXITCODE -ne 0 -or $prepare -notmatch 'RWF809_ETW_PREPARE_PASS') {throw "Original fixture preparation FAILED: $prepare"}
 function Exec {
-  param([string]$Cmd,[string[]]$Args,[string]$Log)
-  $message=(& $Cmd @Args 2>&1 | Out-String)
+  param([string]$Cmd,[string[]]$Arguments,[string]$Log)
+  $message=(& $Cmd @Arguments 2>&1 | Out-String)
   $exit=$LASTEXITCODE
   $message | Set-Content -Encoding utf8 -LiteralPath (Join-Path $out $Log)
   if ($exit -ne 0) {throw "$Cmd failed exit=$exit args=$($Args -join ' ') output=$message"}
@@ -41,9 +41,9 @@ function Exec {
 }
 function Run-Pinned {
   param([string]$Stage)
-  $raw=Exec -Cmd $exePath -Args @('--etw-workload') -Log "$Stage-measurements.txt"
+  $raw=Exec -Cmd $exePath -Arguments @('--etw-workload') -Log "$Stage-measurements.txt"
   $lines=@($raw -split '\r?\n' | Where-Object {$_ -like 'RWF809_NT_CSV *'})
-  if ($lines.Count -ne 48 -or -not $raw.Contains('RWF809_ETW_PASS')) {
+  if ($lines.Count -ne 48 -or -not $raw.Contains('RWF809_ETW_PASS') -or $raw.Contains('RWF809_NT_PASS')) {
     throw "Pinned workload incomplete stage=$Stage samples=$($lines.Count)"
   }
   $keys=[System.Collections.Generic.HashSet[string]]::new()
@@ -87,20 +87,20 @@ foreach ($stage in $stages) {
   $stopped=$false
   $etl=Join-Path $out "$name.etl"
   try {
-    Exec -Cmd 'wpr.exe' -Args @('-start',$profile,'-filemode') -Log "$name-start.txt" | Out-Null
+    Exec -Cmd 'wpr.exe' -Arguments @('-start',$profile,'-filemode') -Log "$name-start.txt" | Out-Null
     $active=$true
     Run-Pinned -Stage $name
-    $status=Exec -Cmd 'wpr.exe' -Args @('-status','collectors') -Log "$name-status.txt"
+    $status=Exec -Cmd 'wpr.exe' -Arguments @('-status','collectors') -Log "$name-status.txt"
     $counter=@([regex]::Matches($status,'(?im)Events Lost\s*:\s*(\d+)'))
     if ($counter.Count -lt 1) {throw "Loss counter absent for $name; cannot certify trace"}
     foreach ($m in $counter) {
       if ([int64]$m.Groups[1].Value -ne 0) {throw "$name reported lost ETW events $($m.Groups[1].Value)"}
     }
-    Exec -Cmd 'wpr.exe' -Args @('-stop',$etl) -Log "$name-stop.txt" | Out-Null
+    Exec -Cmd 'wpr.exe' -Arguments @('-stop',$etl) -Log "$name-stop.txt" | Out-Null
     $stopped=$true
   } finally {
     if ($active -and -not $stopped) {
-      try {Exec -Cmd 'wpr.exe' -Args @('-cancel') -Log "$name-cancel.txt" | Out-Null}
+      try {Exec -Cmd 'wpr.exe' -Arguments @('-cancel') -Log "$name-cancel.txt" | Out-Null}
       catch {Write-Warning "WPR cancellation failed: $_"}
     }
   }
