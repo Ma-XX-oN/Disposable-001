@@ -70,10 +70,10 @@ internal static class KernelReader
     trace.Process();
     Console.WriteLine("RWF809_KERNEL_ETW_PARSE_COMPLETE");
     var processes = pendingProcesses.Result.Processes
-      .Where(p => string.Equals(Basename(p.ImageName), "rwf809_win32_nt.exe", StringComparison.OrdinalIgnoreCase)
-               || (p.CommandLine ?? "").Contains("rwf809_win32_nt.exe", StringComparison.OrdinalIgnoreCase))
+      .Where(p => string.Equals(Basename(p.ImageName), "rwf809-original-benchmark.exe", StringComparison.OrdinalIgnoreCase)
+               || (p.CommandLine ?? "").Contains("rwf809-original-benchmark.exe", StringComparison.OrdinalIgnoreCase))
       .ToArray();
-    Require(processes.Length > 0, "bench process absent from original ETW: cannot attribute kernel time");
+    Require(processes.Length > 0, "target process absent from CPU-only ETW: cannot attribute kernel time");
     var ids = new HashSet<int>(processes.Select(p => (int)p.Id));
     var cpuData = pendingSamples.Result;
     var rawSamples = cpuData.Samples
@@ -159,10 +159,10 @@ internal static class KernelReader
     var result = new
     {
       provenance = new {
-        origin_run = 43611008082L, replay_run = 43611781719L,
+        origin_run = Environment.GetEnvironmentVariable("GITHUB_RUN_ID") ?? "unknown", replay_run = "same-run",
         original_source_sha = "d18a959ecc7ec551ae0b83d68b7155965edee4f4",
         original_etl_bytes = new FileInfo(tracePath).Length,
-        original_etl_sha256 = "per-stage SHA recorded and validated by Windows run",
+        original_etl_sha256 = "per-stage SHA recorded in stage-identity.json",
         original_trace_stage = Path.GetFileNameWithoutExtension(tracePath),
         original_etw_reported_lost_events = 0,
         note = "CPU.Light versus CPU.Verbose targeted tracing; any sample or wait attribution remains affected by trace overhead. Stages are separately timed."
