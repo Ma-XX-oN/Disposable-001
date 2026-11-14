@@ -1,0 +1,80 @@
+name: RWF809 Windows kernel CPU-only low-overhead attribution
+on:
+  push:
+    branches:
+      - experiment/809-lightweight-kernel-cpu-20261114
+    paths:
+      - .github/workflows/rwf809-kernel-light-cpu.yml
+      - rwf809/light_kernel/**
+permissions:
+  contents: read
+concurrency:
+  group: rwf809-kernel-cpu-only-experiment
+  cancel-in-progress: false
+jobs:
+  native-windows-kernel-cpu-only:
+    runs-on: windows-2025
+    timeout-minutes: 22
+    steps:
+      - name: Checkout isolated experiment
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Checkout exact original benchmark Git revision
+        uses: actions/checkout@v4
+        with:
+          repository: Ma-XX-oN/git
+          ref: d18a959ecc7ec551ae0b83d68b7155965edee4f4
+          path: pinned-git-source
+          persist-credentials: false
+      - name: Build unchanged original Win32 and NT C workload
+        shell: pwsh
+        run: |
+          $ErrorActionPreference='Stop'
+          $sourceRoot=(Join-Path $env:GITHUB_WORKSPACE 'pinned-git-source')
+          $pin=(& git.exe -C $sourceRoot rev-parse HEAD | Out-String).Trim()
+          if ($LASTEXITCODE -ne 0 -or $pin -ne 'd18a959ecc7ec551ae0b83d68b7155965edee4f4') {throw "Wrong Git benchmark revision $pin"}
+          $pf86=[Environment]::GetEnvironmentVariable('ProgramFiles(x86)')
+          $vswhere=Join-Path $pf86 'Microsoft Visual Studio\Installer\vswhere.exe'
+          $vs=(& $vswhere -latest -products '*' -property installationPath | Out-String).Trim()
+          if (-not $vs) {throw 'MSVC toolchain not found'}
+          $dev=Join-Path $vs 'Common7\Tools\VsDevCmd.bat'
+          $c=Join-Path $sourceRoot 'preload\perf\rwf809_win32_nt.c'
+          $h=Join-Path $sourceRoot 'preload\perf\rwf809_win32_nt_dobby.h'
+          if (-not (Test-Path $h)) {throw 'Original pinned dependency header not found'}
+          $build=Join-Path $env:RUNNER_TEMP 'rwf809-build-kernel.cmd'
+          $exe=Join-Path $env:GITHUB_WORKSPACE 'rwf809-original-benchmark.exe'
+          $cmdlines=@('@echo off','call "'+$dev+'" -no_logo -arch=amd64','if errorlevel 1 exit /b 1','cl /nologo /O2 /W4 /WX /Fe:"'+$exe+'" "'+$c+'"','if errorlevel 1 exit /b 1')
+          [IO.File]::WriteAllLines($build,$cmdlines,[Text.Encoding]::ASCII)
+          & cmd.exe /d /c $build
+          if ($LASTEXITCODE -ne 0 -or -not (Test-Path $exe)) {throw 'Pinned original C compilation failed'}
+          Write-Host "RWF809_KERNEL_SOURCE_PIN $pin"
+          Write-Host "RWF809_KERNEL_EXE_SHA256 $((Get-FileHash $exe -Algorithm SHA256).Hash.ToLowerInvariant())"
+      - name: Build pinned Microsoft TraceProcessor kernel CPU analyzer
+        shell: pwsh
+        run: |
+          dotnet build rwf809/light_kernel/KernelReader.csproj -c Release --nologo
+          if ($LASTEXITCODE -ne 0) {throw 'Native .NET ETW reader build failed'}
+      - name: Compare untraced vs CPU.Light vs CPU.Verbose, twice, and attribute stacks/waits
+        shell: pwsh
+        timeout-minutes: 17
+        run: |
+          $ErrorActionPreference='Stop'
+          $env:RWF809_SOURCE_SHA='d18a959ecc7ec551ae0b83d68b7155965edee4f4'
+          $work=Join-Path $env:RUNNER_TEMP 'rwf809-kernel-workload'
+          New-Item -ItemType Directory -Force -Path $work | Out-Null
+          Set-Location $work
+          $exe=Join-Path $env:GITHUB_WORKSPACE 'rwf809-original-benchmark.exe'
+          $reader=Join-Path $env:GITHUB_WORKSPACE 'rwf809/light_kernel/bin/Release/net8.0/KernelReader.dll'
+          $out=Join-Path $env:GITHUB_WORKSPACE 'light-kernel-evidence'
+          & (Join-Path $env:GITHUB_WORKSPACE 'rwf809/light_kernel/probe.ps1') -Exe $exe -Output $out -ReaderDll $reader
+          if ($LASTEXITCODE -ne 0) {throw 'Kernel ETW compare script failed'}
+      - name: Publish exact stage ETL and per-stage kernel/CPU statistics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: rwf809-kernel-cpu-only-low-overhead
+          path: light-kernel-evidence/
+          retention-days: 7
+          if-no-files-found: warn
+          compression-level: 0
