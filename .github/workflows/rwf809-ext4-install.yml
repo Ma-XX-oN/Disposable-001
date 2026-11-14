@@ -1,0 +1,35 @@
+name: RWF809 native ext4 Windows driver installation probe
+on:
+  push:
+    branches:
+      - experiment/809-ext4-driver-install-20261114
+    paths:
+      - .github/workflows/rwf809-ext4-install.yml
+      - rwf809/probe-ext4-driver.ps1
+permissions:
+  contents: read
+concurrency:
+  group: rwf809-ext4-native-install
+  cancel-in-progress: false
+jobs:
+  native-driver-install:
+    runs-on: windows-2025
+    timeout-minutes: 15
+    steps:
+      - name: Checkout isolated script
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Download official v0.71, inspect signed driver, install and load
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          & .\rwf809\probe-ext4-driver.ps1 -Output (Join-Path $env:GITHUB_WORKSPACE 'driver-results')
+      - name: Preserve exact downloaded identity, verification and driver result
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: rwf809-ext4-native-driver-probe
+          path: driver-results/
+          if-no-files-found: warn
+          retention-days: 7
