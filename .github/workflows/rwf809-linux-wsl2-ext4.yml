@@ -64,8 +64,12 @@ jobs:
           if ($LASTEXITCODE -ne 0 -or $root -ne 'ext4') {throw "WSL root is not ext4: $root"}
           (& wsl.exe -d Ubuntu -u root -- uname -r) | Set-Content -Path results\kernel.txt -Encoding utf8
           $winSource=(Join-Path $env:GITHUB_WORKSPACE 'rwf809\posix-ext4-benchmark.c')
-          $linuxSource=(& wsl.exe -d Ubuntu -u root -- wslpath -u $winSource | Out-String).Trim()
-          if ($LASTEXITCODE -ne 0 -or -not $linuxSource.StartsWith('/mnt/')) {throw "Cannot resolve checked-out C source in WSL: $linuxSource"}
+          $linuxSource='/mnt/'+$winSource.Substring(0,1).ToLowerInvariant()+'/'+$winSource.Substring(3).Replace('\','/')
+          & wsl.exe -d Ubuntu -u root -- test -f $linuxSource
+          if ($LASTEXITCODE -ne 0) {throw "Windows checkout unavailable inside WSL at $linuxSource"}
+          $expected=(Get-FileHash -LiteralPath $winSource -Algorithm SHA256).Hash.ToLowerInvariant()
+          $wsldata=(& wsl.exe -d Ubuntu -u root -- sha256sum $linuxSource | Out-String).Trim()
+          if ($LASTEXITCODE -ne 0 -or -not $wsldata.StartsWith($expected)) {throw "WSL source bytes differ from Windows checkout"}
           # Commands compiled inside WSL2, while measurement and fixtures reside on Linux ext4.
           & wsl.exe -d Ubuntu -u root -- apt-get update -qq
           if ($LASTEXITCODE -ne 0) {throw 'WSL apt index failed'}
