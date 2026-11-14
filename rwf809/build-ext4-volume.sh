@@ -12,7 +12,7 @@ sgdisk --clear --new=1:2048:-2048 --typecode=1:0700 --change-name=1:RWF809EXT4 "
 sgdisk --verify "$raw"
 # Partition: 1MiB offset, 1MiB end reservation; exactly 261632 4096-byte blocks.
 mkfs.ext4 -F -b 4096 -E offset=1048576 \
-  -O '^orphan_file,^metadata_csum_seed,^encrypt,^casefold,^inline_data,^mmp,^ea_inode,^largedir' \
+  -O '^orphan_file,^metadata_csum_seed,^encrypt,^casefold,^inline_data,^mmp,^ea_inode,^large_dir' \
   -L RWF809EXT4 "$raw" 261632
 # Independently inspect just the FS partition, never the raw GPT header.
 dd if="$raw" of="$out/ext4-partition.img" bs=1048576 skip=1 count=1022 status=none
