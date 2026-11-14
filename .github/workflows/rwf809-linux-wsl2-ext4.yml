@@ -1,0 +1,95 @@
+name: RWF809 native Linux vs WSL2 ext4 equivalent POSIX benchmark
+on:
+  push:
+    branches:
+      - experiment/809-linux-wsl2-ext4-bench-20261114
+    paths:
+      - .github/workflows/rwf809-linux-wsl2-ext4.yml
+      - rwf809/posix-ext4-benchmark.c
+permissions:
+  contents: read
+jobs:
+  linux-native:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Make a real ext4 loop-mounted volume and compile exact C source
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p results
+          gcc --version | head -1 | tee results/compiler.txt
+          gcc -std=c11 -O2 -Wall -Wextra -Werror -pthread -o /tmp/rwf809-posix-bench rwf809/posix-ext4-benchmark.c
+          sha256sum rwf809/posix-ext4-benchmark.c /tmp/rwf809-posix-bench > results/hashes.txt
+          truncate -s 8589934592 "$RUNNER_TEMP/rwf809-native-ext4.img"
+          mkfs.ext4 -q -F -b 4096 "$RUNNER_TEMP/rwf809-native-ext4.img"
+          sudo mkdir -p /mnt/rwf809-ext4
+          sudo mount -t ext4 -o loop "$RUNNER_TEMP/rwf809-native-ext4.img" /mnt/rwf809-ext4
+          sudo chown "$USER" /mnt/rwf809-ext4
+          findmnt -no FSTYPE,SOURCE,TARGET /mnt/rwf809-ext4 | tee results/mount.txt
+          test "$(findmnt -no FSTYPE /mnt/rwf809-ext4)" = "ext4"
+          stat -f -c '%s %b' /mnt/rwf809-ext4 > results/block-sizes.txt
+          /tmp/rwf809-posix-bench native-linux /mnt/rwf809-ext4 | tee results/measurements.txt
+          test "$(grep -c '^RWF809_POSIX_CSV ' results/measurements.txt)" -eq 160
+          grep -q '^RWF809_POSIX_PASS ' results/measurements.txt
+          sudo umount /mnt/rwf809-ext4
+          echo "RWF809_NATIVE_LINUX_EXT4_BENCH_PASS"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: rwf809-posix-native-linux-ext4
+          path: results/
+          if-no-files-found: warn
+          retention-days: 7
+  windows-wsl2:
+    runs-on: windows-2025
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Install and start actual WSL2 Ubuntu
+        shell: pwsh
+        run: |
+          $ErrorActionPreference='Stop'
+          New-Item -ItemType Directory -Force -Path 'results' | Out-Null
+          $stdout=(Join-Path $env:GITHUB_WORKSPACE 'results\install.txt')
+          $stderr=(Join-Path $env:GITHUB_WORKSPACE 'results\install-errors.txt')
+          $p=Start-Process -FilePath 'wsl.exe' -ArgumentList @('--install','--distribution','Ubuntu','--web-download','--no-launch') -PassThru -Wait -RedirectStandardOutput $stdout -RedirectStandardError $stderr
+          if ($p.ExitCode -ne 0) {throw "WSL Ubuntu installation failed $($p.ExitCode)"}
+          $root=(& wsl.exe -d Ubuntu -u root -- findmnt -no FSTYPE / | Out-String).Trim()
+          if ($LASTEXITCODE -ne 0 -or $root -ne 'ext4') {throw "WSL root is not ext4: $root"}
+          (& wsl.exe -d Ubuntu -u root -- uname -r) | Set-Content -Path results\kernel.txt -Encoding utf8
+          $winSource=(Join-Path $env:GITHUB_WORKSPACE 'rwf809\posix-ext4-benchmark.c')
+          $linuxSource=(& wsl.exe -d Ubuntu -u root -- wslpath -u $winSource | Out-String).Trim()
+          if ($LASTEXITCODE -ne 0 -or -not $linuxSource.StartsWith('/mnt/')) {throw "Cannot resolve checked-out C source in WSL: $linuxSource"}
+          # Commands compiled inside WSL2, while measurement and fixtures reside on Linux ext4.
+          & wsl.exe -d Ubuntu -u root -- apt-get update -qq
+          if ($LASTEXITCODE -ne 0) {throw 'WSL apt index failed'}
+          & wsl.exe -d Ubuntu -u root -- apt-get install -y -qq gcc libc6-dev
+          if ($LASTEXITCODE -ne 0) {throw 'WSL gcc installation failed'}
+          & wsl.exe -d Ubuntu -u root -- gcc -std=c11 -O2 -Wall -Wextra -Werror -pthread -o /root/rwf809-posix-bench $linuxSource
+          if ($LASTEXITCODE -ne 0) {throw 'WSL POSIX C compile failed'}
+          (& wsl.exe -d Ubuntu -u root -- gcc --version) | Select-Object -First 1 | Set-Content -Path results\compiler.txt -Encoding utf8
+          (& wsl.exe -d Ubuntu -u root -- sha256sum $linuxSource /root/rwf809-posix-bench) | Set-Content -Path results\hashes.txt -Encoding utf8
+          & wsl.exe -d Ubuntu -u root -- mkdir -p /mnt/rwf809-ext4
+          (& wsl.exe -d Ubuntu -u root -- findmnt -no FSTYPE,SOURCE,TARGET /) | Set-Content -Path results\mount.txt -Encoding utf8
+          (& wsl.exe -d Ubuntu -u root -- stat -f -c '%s %b' /mnt/rwf809-ext4) | Set-Content -Path results\block-sizes.txt -Encoding utf8
+          & wsl.exe -d Ubuntu -u root -- /root/rwf809-posix-bench wsl2 /mnt/rwf809-ext4 > results\measurements.txt
+          if ($LASTEXITCODE -ne 0) {throw 'WSL2 ext4 benchmark execution failed'}
+          $data=Get-Content -LiteralPath results\measurements.txt
+          if (@($data | Where-Object {$_ -like 'RWF809_POSIX_CSV *'}).Count -ne 160 -or
+              -not @($data | Where-Object {$_ -like 'RWF809_POSIX_PASS *'}).Count) {
+            throw 'WSL2 raw sample count or completion marker invalid'
+          }
+          Write-Host "RWF809_WSL2_EXT4_BENCH_PASS 160 valid measured rows"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: rwf809-posix-wsl2-ext4
+          path: results/
+          if-no-files-found: warn
+          retention-days: 7
