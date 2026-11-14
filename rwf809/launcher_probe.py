@@ -40,8 +40,15 @@ def main():
       if vs.returncode or not vs.stdout.strip():
         raise RuntimeError("VS toolchain discovery failed")
       dev = Path(vs.stdout.decode().strip()) / "Common7/Tools/VsDevCmd.bat"
-      command = f'call "{dev}" -no_logo -arch=amd64 && cl /nologo /O2 /Fe:"{binary}" "{source}"'
-      compile_run = invoke(["cmd.exe", "/d", "/c", command], ROOT)
+      batch = Path(temp) / "build-noop.cmd"
+      batch.write_text(
+        '@echo off\r\n' +
+        f'call "{dev}" -no_logo -arch=amd64\r\n' +
+        'if errorlevel 1 exit /b 1\r\n' +
+        f'cl /nologo /O2 /Fe:"{binary}" "{source}"\r\n',
+        encoding="ascii"
+      )
+      compile_run = invoke(["cmd.exe", "/d", "/c", str(batch)], ROOT)
     else:
       compiler = "clang" if platform.system() == "Darwin" else "cc"
       compile_run = invoke([compiler, "-O2", "-o", str(binary), str(source)], ROOT)
