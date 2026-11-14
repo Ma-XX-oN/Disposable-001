@@ -29,7 +29,7 @@ def main():
   assert rev.returncode == 0 and rev.stdout.decode().strip() == EXPECTED
   with tempfile.TemporaryDirectory(prefix="rwf809-noop-") as temp:
     source = Path(temp) / "noop.c"
-    source.write_text("int main(void) { return 0; }\n", encoding="ascii")
+    source.write_bytes(b"int main(void) { return 0; }\n")
     binary = Path(temp) / ("noop.exe" if os.name == "nt" else "noop")
     if os.name == "nt":
       pf86 = os.environ.get("ProgramFiles(x86)")
