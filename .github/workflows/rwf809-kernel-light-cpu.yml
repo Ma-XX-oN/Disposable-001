@@ -44,7 +44,13 @@ jobs:
           if (-not (Test-Path $h)) {throw 'Original pinned dependency header not found'}
           $build=Join-Path $env:RUNNER_TEMP 'rwf809-build-kernel.cmd'
           $exe=Join-Path $env:GITHUB_WORKSPACE 'rwf809-original-benchmark.exe'
-          $cmdlines=@('@echo off','call "'+$dev+'" -no_logo -arch=amd64','if errorlevel 1 exit /b 1','cl /nologo /O2 /W4 /WX /Fe:"'+$exe+'" "'+$c+'"','if errorlevel 1 exit /b 1')
+          $cmdlines = @(
+            '@echo off'
+            "call `"$dev`" -no_logo -arch=amd64"
+            'if errorlevel 1 exit /b 1'
+            "cl /nologo /O2 /W4 /WX /Fe:`"$exe`" `"$c`""
+            'if errorlevel 1 exit /b 1'
+          )
           [IO.File]::WriteAllLines($build,$cmdlines,[Text.Encoding]::ASCII)
           & cmd.exe /d /c $build
           if ($LASTEXITCODE -ne 0 -or -not (Test-Path $exe)) {throw 'Pinned original C compilation failed'}
