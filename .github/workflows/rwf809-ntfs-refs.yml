@@ -1,0 +1,35 @@
+name: RWF809 NTFS vs ReFS paired Windows benchmark
+on:
+  push:
+    branches:
+      - experiment/809-ntfs-refs-20261114
+    paths:
+      - .github/workflows/rwf809-ntfs-refs.yml
+      - rwf809/compare-filesystems.ps1
+permissions:
+  contents: read
+concurrency:
+  group: rwf809-paired-filesystem
+  cancel-in-progress: false
+jobs:
+  windows-only:
+    runs-on: windows-2025
+    timeout-minutes: 30
+    steps:
+      - name: Checkout isolated experiment
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Create matched private VHDX filesystems and run pinned native benchmark
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          & .\rwf809\compare-filesystems.ps1 -Output (Join-Path $env:GITHUB_WORKSPACE 'results')
+      - name: Preserve identity, raw samples, summary and filter inventory
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: rwf809-ntfs-refs-raw-and-summary
+          path: results/
+          if-no-files-found: warn
+          retention-days: 7
