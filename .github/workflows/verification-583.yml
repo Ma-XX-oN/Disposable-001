@@ -19,7 +19,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           repository: Ma-XX-oN/RepoWorkflow
-          ref: d1e68c411e211c2322a9f69540a77b19bce2e5de
+          ref: 62223b89eb4f1b78fb52f107190c76703c4282b0
           fetch-depth: 0
           persist-credentials: false
       - uses: actions/setup-python@v5
@@ -27,7 +27,7 @@ jobs:
           python-version: '3.13'
       - name: Assert exact tested source
         shell: bash
-        run: test "$(git rev-parse HEAD)" = "d1e68c411e211c2322a9f69540a77b19bce2e5de"
+        run: test "$(git rev-parse HEAD)" = "62223b89eb4f1b78fb52f107190c76703c4282b0"
       - name: Install dependencies
         run: python -m pip install -r requirements.txt
       - name: Functional lifecycle CSV graph and completion regression
