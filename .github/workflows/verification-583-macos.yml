@@ -7,7 +7,7 @@ permissions:
   contents: read
 jobs:
   certify:
-    runs-on: macos-15
+    runs-on: macos-15-intel
     timeout-minutes: 90
     env:
       PYTHONUTF8: '1'
