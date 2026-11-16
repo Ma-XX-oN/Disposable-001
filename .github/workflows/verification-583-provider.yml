@@ -1,0 +1,30 @@
+name: RWF583 read-only provider title certification
+on:
+  push:
+    branches: [verification-583-exact-source-20261116]
+    paths: [.github/workflows/verification-583-provider.yml]
+permissions:
+  contents: read
+jobs:
+  provider-title:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          repository: Ma-XX-oN/RepoWorkflow
+          ref: 62223b89eb4f1b78fb52f107190c76703c4282b0
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Assert exact tested source
+        shell: bash
+        run: test "$(git rev-parse HEAD)" = "62223b89eb4f1b78fb52f107190c76703c4282b0"
+      - run: python -m pip install -r requirements.txt
+      - name: Read provider title and verify local merge leaves lifecycle unchanged
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PYTHONUTF8: '1'
+        run: python scripts/validate-issue.py --groups issue-583-live-provider-title
