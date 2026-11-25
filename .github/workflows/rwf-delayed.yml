@@ -1,0 +1,23 @@
+name: rwf-delayed
+
+# Test of RWF's delayed execution: a dispatched run with inputs that waits out
+# the rwf-delay environment's wait timer before running its job.
+on:
+  workflow_dispatch:
+    inputs:
+      parent:
+        description: Parent key
+        required: true
+      prelim:
+        description: PRELIM branch
+        required: true
+
+jobs:
+  timed-out:
+    runs-on: ubuntu-latest
+    environment: rwf-delay
+    steps:
+      - name: Report
+        run: |
+          echo "Would run: rwf umbrella kickstart ${{ inputs.parent }} --timed-out ${{ inputs.prelim }}"
+          date -u
