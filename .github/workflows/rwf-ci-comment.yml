@@ -1,0 +1,26 @@
+name: rwf-ci-comment
+
+# Test: which account does a comment posted with the run's own GITHUB_TOKEN
+# appear under, through both the REST CLI and GraphQL?
+on:
+  workflow_dispatch:
+
+permissions:
+  issues: write
+  contents: read
+
+jobs:
+  comment:
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      GH_REPO: ${{ github.repository }}
+    steps:
+      - name: Comment through gh issue comment
+        run: gh issue comment 54 --body "RWF CI comment author test (gh issue comment), run ${{ github.run_id }}"
+      - name: Comment through GraphQL addComment
+        run: |
+          id=$(gh api graphql -f query='query { repository(owner: "${{ github.repository_owner }}", name: "${{ github.event.repository.name }}") { issue(number: 54) { id } } }' --jq .data.repository.issue.id)
+          gh api graphql -f query="mutation { addComment(input: {subjectId: \"$id\", body: \"RWF CI comment author test (GraphQL), run ${{ github.run_id }}\"}) { commentEdge { node { author { login } } } } }"
+      - name: Report the rate-limit budget of this token
+        run: gh api rate_limit --jq '{core: .resources.core, graphql: .resources.graphql}'
