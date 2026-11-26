@@ -1,0 +1,24 @@
+name: rwf-ci-limits
+
+# Test: how the content-creation limits behave for the run's own GITHUB_TOKEN.
+on:
+  workflow_dispatch:
+
+permissions:
+  issues: write
+  contents: read
+
+jobs:
+  limits:
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      GH_REPO: ${{ github.repository }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Report the token's rate-limit budget
+        run: |
+          gh api rate_limit --jq '{core: .resources.core, graphql: .resources.graphql}'
+      - name: Post three rounds of 30 comments
+        run: |
+          python3 .github/rwf-ci-limits.py
