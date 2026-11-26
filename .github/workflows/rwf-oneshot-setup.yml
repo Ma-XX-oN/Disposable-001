@@ -1,0 +1,54 @@
+name: rwf-oneshot-setup
+
+# Test of RWF's GitHub_privateReg delayed execution: commit a one-shot
+# scheduled workflow to main (as the CI's own GITHUB_TOKEN), which fires once
+# at the deadline and then deletes itself.
+on:
+  workflow_dispatch:
+    inputs:
+      delay_minutes:
+        description: Minutes until the one-shot fires
+        default: '12'
+
+permissions:
+  contents: write
+
+jobs:
+  setup:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Commit a one-shot scheduled workflow
+        run: |
+          read M H D Mo <<< "$(date -u -d "+${{ inputs.delay_minutes }} minutes" '+%M %H %d %m')"
+          id=$(date -u '+%Y%m%d%H%M%S')
+          f=.github/workflows/rwf-oneshot-$id.yml
+          cat > "$f" <<EOF
+          name: rwf-oneshot-$id
+          on:
+            schedule:
+              - cron: '$((10#$M)) $((10#$H)) $((10#$D)) $((10#$Mo)) *'
+          permissions:
+            contents: write
+          jobs:
+            fire:
+              runs-on: ubuntu-latest
+              steps:
+                - uses: actions/checkout@v4
+                - name: Fire and delete
+                  run: |
+                    date -u
+                    echo "Would run: rwf umbrella kickstart issue.5.0 --timed-out PRELIM-oneshot"
+                    git config user.name "github-actions[bot]"
+                    git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+                    git rm -q "$f"
+                    git commit -q -m "RWF-WORKAROUND: delayed execution"
+                    git push -q
+          EOF
+          cat "$f"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add "$f"
+          git commit -q -m "RWF-WORKAROUND: delayed execution"
+          git push -q
+          echo "Scheduled for $H:$M UTC on $D/$Mo"
